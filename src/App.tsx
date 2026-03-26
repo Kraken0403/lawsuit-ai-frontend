@@ -1,12 +1,5 @@
-import {
-  FormEvent,
-  KeyboardEvent,
-  ReactNode,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import {
   streamChat,
   type CaseDigest,
@@ -69,7 +62,7 @@ function uuid() {
 export default function App() {
   const { user, loading: authLoading, logout } = useAuth();
 
-  const [activeView, setActiveView] = useState<"chat" | "bookmarks">("chat");
+  const [activeView, setActiveView] = useState<"chat" | "bookmarks" | "settings">("chat");
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(
     null
@@ -291,16 +284,16 @@ export default function App() {
     return response.conversations;
   };
 
-  const loadBookmarks = async () => {
-    setBookmarksLoading(true);
-    try {
-      const response = await bookmarkService.list();
-      setBookmarks(response.bookmarks);
-      return response.bookmarks;
-    } finally {
-      setBookmarksLoading(false);
-    }
-  };
+  // const loadBookmarks = async () => {
+  //   setBookmarksLoading(true);
+  //   try {
+  //     const response = await bookmarkService.list();
+  //     setBookmarks(response.bookmarks);
+  //     return response.bookmarks;
+  //   } finally {
+  //     setBookmarksLoading(false);
+  //   }
+  // };
 
   const loadConversationMessages = async (conversationId: string) => {
     setMessagesLoading(true);

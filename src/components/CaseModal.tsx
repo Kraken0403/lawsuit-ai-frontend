@@ -1,8 +1,5 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
+import { useEffect, useMemo, useRef, useState } from "react";
+import type {
   MouseEvent,
   KeyboardEvent as ReactKeyboardEvent,
   ReactNode,
@@ -224,7 +221,7 @@ export default function CaseModal({
   const [qdrantCase, setQdrantCase] = useState<QdrantFullCase | null>(null);
   const [detailedSummary, setDetailedSummary] =
     useState<DetailedCaseSummary | null>(null);
-  const [summaryCached, setSummaryCached] = useState<boolean | null>(null);
+//   const [summaryCached, setSummaryCached] = useState<boolean | null>(null);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
@@ -266,7 +263,7 @@ export default function CaseModal({
     setSqlCase(null);
     setQdrantCase(null);
     setDetailedSummary(null);
-    setSummaryCached(null);
+    // setSummaryCached(null);
 
     setChatOpen(false);
     setChatInput("");
@@ -323,7 +320,7 @@ export default function CaseModal({
       .then((response) => {
         if (!cancelled) {
           setDetailedSummary(response.summary);
-          setSummaryCached(response.cached);
+        //   setSummaryCached(response.cached);
         }
       })
       .catch((error) => {
