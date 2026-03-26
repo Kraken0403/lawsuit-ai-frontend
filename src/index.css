@@ -1,0 +1,301 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  background: #020617;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: #e2e8f0;
+  background:
+    radial-gradient(circle at top, rgba(34, 211, 238, 0.12), transparent 30%),
+    radial-gradient(circle at right, rgba(59, 130, 246, 0.08), transparent 25%),
+    linear-gradient(180deg, #020617 0%, #020617 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+*::selection {
+  background: rgba(0, 0, 0, 0.4);
+  color: #f8fafc;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.35);
+}
+
+@keyframes cursor-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.18;
+  }
+}
+
+.typing-cursor {
+  animation: cursor-blink 1s step-end infinite;
+}
+
+ .case-html {
+  color: #334155;
+  line-height: 1.85;
+  font-size: 15px;
+  word-break: break-word;
+}
+
+.case-html * {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.case-html .highcourt,
+.case-html .judgtitle,
+.case-html .judgdate,
+.case-html .citations,
+.case-html .judges,
+.case-html .apptype,
+.case-html .appealno,
+.case-html .fd,
+.case-html .acts,
+.case-html .eqcitations,
+.case-html .advocate,
+.case-html .hn,
+.case-html .judgpara,
+.case-html .judgspara,
+.case-html .rjud {
+  color: #000000;
+  line-height: 1.85;
+}
+
+.case-html .highcourt {
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.case-html .judgtitle {
+  margin: 0 0 14px;
+  font-size: 26px;
+  line-height: 1.3;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.case-html .judgdate,
+.case-html .citations,
+.case-html .judges,
+.case-html .apptype,
+.case-html .appealno,
+.case-html .fd,
+.case-html .acts,
+.case-html .eqcitations,
+.case-html .advocate {
+  margin-bottom: 10px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: #475569;
+}
+
+.case-html .hn,
+.case-html .rjud {
+  margin: 18px 0;
+  padding: 14px 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 18px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.case-html .judgpara,
+.case-html .judgspara {
+  margin: 0 0 16px;
+  font-size: 15px;
+  line-height: 1.9;
+  color: #334155;
+}
+
+.case-html p {
+  margin: 0 0 16px;
+  font-size: 15px;
+  line-height: 1.9;
+}
+
+.case-html br + br {
+  display: block;
+  content: "";
+  margin-top: 8px;
+}
+
+.case-html strong,
+.case-html b {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.case-html em,
+.case-html i {
+  font-style: italic;
+}
+
+.case-html u {
+  text-decoration: underline;
+}
+
+.case-html hr {
+  margin: 22px 0;
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.case-html blockquote {
+  margin: 18px 0;
+  padding: 12px 16px;
+  border-left: 4px solid #93c5fd;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.case-html ul,
+.case-html ol {
+  margin: 12px 0 16px 20px;
+  padding-left: 18px;
+}
+
+.case-html li {
+  margin-bottom: 8px;
+  line-height: 1.8;
+}
+
+.case-html table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: white;
+}
+
+.case-html th,
+.case-html td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.case-html th {
+  background: #f8fafc;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.case-html tr:last-child td {
+  border-bottom: 0;
+}
+
+.case-html a {
+  color: #2563eb;
+  text-decoration: none;
+  pointer-events: none;
+  cursor: default;
+}
+
+.case-html img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 16px;
+}
+
+.case-html pre,
+.case-html code {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace;
+}
+
+.case-html pre {
+  overflow-x: auto;
+  margin: 18px 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.case-html code {
+  font-size: 13px;
+}
+
+.case-html .case-section-separator {
+  margin: 24px 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #cbd5e1, transparent);
+}
+
+@media (max-width: 768px) {
+  .case-html {
+    font-size: 14px;
+    line-height: 1.8;
+  }
+
+  .case-html .judgtitle {
+    font-size: 21px;
+  }
+
+  .case-html .judgpara,
+  .case-html .judgspara,
+  .case-html p {
+    font-size: 14px;
+    line-height: 1.8;
+  }
+
+  .case-html table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
