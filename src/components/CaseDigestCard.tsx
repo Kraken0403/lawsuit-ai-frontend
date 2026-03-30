@@ -108,7 +108,7 @@ export default function CaseDigestCard({
     <button
       type="button"
       onClick={() => onOpen(item)}
-      className="block w-full py-4 text-left transition cursor-pointer bg-white border border-slate-200 rounded-md shadow-sm hover:shadow-md"
+      className="block w-full p-4 text-left transition cursor-pointer hover:bg-white rounded-[18px]"
     >
       <div className="text-sm font-semibold leading-6 text-slate-900">
         {index + 1}. {item.title}

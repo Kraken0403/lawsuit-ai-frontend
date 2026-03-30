@@ -153,7 +153,7 @@ function SidebarNavButton({
         type="button"
         onClick={onClick}
         title={label}
-        className={`w-full p-2 rounded-md transition ${btnBg}`}
+        className={`w-full p-2 rounded-md transition ${btnBg} cursor-pointer`}
       >
         <div className="flex items-center justify-center">
           <div className={`h-8 w-8 rounded-full flex items-center justify-center font-semibold ${iconClass}`}>
@@ -277,7 +277,7 @@ export default function Sidebar({
             onChangeView("chat");
             onNewChat();
           }}
-          className={`inline-flex w-full items-center justify-center gap-2 ${collapsed ? "p-2 rounded-md" : "rounded-2xl px-4 py-3"} ${inverted ? "bg-slate-100 text-slate-700" : "bg-[#114C8D] text-white"} transition hover:opacity-95`}
+          className={`inline-flex w-full items-center justify-center cursor-pointer gap-2 ${collapsed ? "p-2 rounded-md" : "rounded-2xl px-4 py-3"} ${inverted ? "bg-slate-100 text-slate-700" : "bg-[#114C8D] text-white"} transition hover:opacity-95`}
         >
           <PlusIcon />
           {!collapsed && <span>New chat</span>}

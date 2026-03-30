@@ -816,8 +816,8 @@ const handlePdfClick = (item: CaseDigest) => {
               {activeView !== "bookmarks" && (
                 <>
                   <div className="min-h-0 flex-1 overflow-y-auto">
-                    <div className="mx-auto w-full max-w-[1100px] px-4 py-6">
-                      <div className="rounded-[28px] bg-white p-8 shadow-[0_30px_120px_rgba(15,23,42,0.06)]">
+                    <div className="mx-auto w-full max-w-[800px] px-4 py-6">
+                      <div className="rounded-[28px] p-8 ">
                         {!hasUserMessages && !messagesLoading && (
                           <div className="mb-8">
                             <div className="flex flex-col items-center gap-6 text-center">
@@ -869,7 +869,7 @@ const handlePdfClick = (item: CaseDigest) => {
                             if (isUser) {
                               return (
                                 <div key={message.id} className="flex justify-end">
-                                  <div className="max-w-[88%] rounded-3xl bg-[#114C8D] px-4 py-3 text-white shadow-sm sm:max-w-[75%]">
+                                  <div className="max-w-[88%] rounded-[14px] bg-[#114C8D] px-4 py-3 text-white shadow-sm sm:max-w-[75%]">
                                     <div className="mb-2 text-[11px] font-semibold uppercase   text-blue-100">
                                       You
                                     </div>
