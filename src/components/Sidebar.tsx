@@ -251,7 +251,7 @@ export default function Sidebar({
       <div className={`border-b ${inverted ? "border-white/10" : "border-slate-200"} px-4 py-4`}>
         <div className={`mb-3 flex items-center ${collapsed ? 'justify-center' : ''}`}>
             <div className="min-w-0 flex items-center gap-3">
-              <img src="/LawsuitAI%20Logo.png" alt="Lawsuit AI" className="h-8 object-contain" />
+              <img src="/logo.png" alt="Lawsuit AI" className="h-8 object-contain" />
             </div>
 
             <div className={`${collapsed ? 'ml-0' : 'ml-auto'} flex items-center gap-2 ${collapsed ? 'justify-center w-full' : ''}`}>

@@ -194,9 +194,8 @@ export default function AuthScreen() {
         <div className="grid w-full items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="hidden lg:block">
             <div className="max-w-xl">
-              <div className="mb-6 inline-flex items-center gap-3 rounded-full border border-blue-100 bg-white/80 px-4 py-2 text-sm font-medium text-blue-700 backdrop-blur">
-                <LogoIcon />
-                <span>Lawsuit AI</span>
+              <div className="mb-2 w-[300px] inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium">
+                <img className="w-full" src="/logo.png" alt="" />
               </div>
 
               <h1 className="text-[clamp(38px,5vw,64px)] font-semibold leading-[1.04] tracking-tight text-slate-950">
@@ -246,7 +245,9 @@ export default function AuthScreen() {
                       Legal research workspace
                     </div>
                   </div>
+                  
                 </div>
+                
 
                 <div className="mb-4 inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
                   {mode === "login" ? "Sign in" : "Register"}
