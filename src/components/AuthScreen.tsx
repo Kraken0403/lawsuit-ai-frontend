@@ -5,7 +5,7 @@ type Mode = "login" | "register";
 
 function LogoIcon() {
   return (
-    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white">
+    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#114C8D] text-white">
       <svg
         viewBox="0 0 24 24"
         className="h-6 w-6"
@@ -188,7 +188,7 @@ export default function AuthScreen() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-50">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.10),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(37,99,235,0.08),_transparent_32%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.10),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(17,76,141,0.08),_transparent_32%)]" />
 
       <div className="relative mx-auto flex min-h-screen max-w-7xl items-center px-4 py-10 sm:px-6 lg:px-8">
         <div className="grid w-full items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
@@ -344,7 +344,7 @@ export default function AuthScreen() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="mt-2 inline-flex w-full cursor-pointer items-center justify-center rounded-2xl bg-blue-600 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  className="mt-2 inline-flex w-full cursor-pointer items-center justify-center rounded-2xl bg-[#114C8D] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#0B3A6E] disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   {submitting
                     ? mode === "login"

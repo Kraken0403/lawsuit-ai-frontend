@@ -11,6 +11,8 @@ import CaseModal from "./components/CaseModal";
 import CaseDigestCard from "./components/CaseDigestCard";
 import AuthScreen from "./components/AuthScreen";
 import BookmarksPage from "./components/BookmarksPage";
+import OrbCanvas from "./components/OrbCanvas";
+import Typewriter from "./components/Typewriter";
 import { useAuth } from "./context/AuthContext";
 import {
   conversationService,
@@ -732,7 +734,7 @@ const handlePdfClick = (item: CaseDigest) => {
   return (
     <>
       <div className="min-h-screen bg-slate-50 text-slate-900">
-        <div className="mx-auto min-h-screen max-w-[1600px] lg:flex lg:h-screen">
+        <div className="mx-auto min-h-screen lg:flex lg:h-screen">
           <Sidebar
             conversations={conversations}
             activeConversationId={activeConversationId}
@@ -741,6 +743,8 @@ const handlePdfClick = (item: CaseDigest) => {
             onChangeView={setActiveView}
             onSelectConversation={handleSelectConversation}
             onNewChat={handleNewConversation}
+            userName={user.name || user.email}
+            onLogout={logout}
           />
 
           <main className="flex min-w-0 flex-1 flex-col lg:h-screen">
@@ -758,14 +762,11 @@ const handlePdfClick = (item: CaseDigest) => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="hidden text-sm text-slate-500 sm:block">
-                    {user.name || user.email}
-                  </div>
 
                   <button
                     type="button"
                     onClick={handleShareChat}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                   >
                     <svg
                       viewBox="0 0 24 24"
@@ -778,7 +779,15 @@ const handlePdfClick = (item: CaseDigest) => {
                       <path d="M12 16V3" />
                       <path d="m7 8 5-5 5 5" />
                     </svg>
-                    <span>Share</span>
+                    <span>Export</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {}}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-[#114C8D] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#0B3A6E]"
+                  >
+                    Upgrade
                   </button>
 
                   <button
@@ -793,7 +802,7 @@ const handlePdfClick = (item: CaseDigest) => {
             </header>
 
             <div className="flex min-h-0 flex-1 flex-col">
-              {activeView === "bookmarks" ? (
+              {activeView === "bookmarks" && (
                 <div className="min-h-0 flex-1 overflow-y-auto">
                   <BookmarksPage
                     bookmarks={bookmarks}
@@ -802,36 +811,54 @@ const handlePdfClick = (item: CaseDigest) => {
                     onRemoveBookmark={handleRemoveBookmark}
                   />
                 </div>
-              ) : (
+              )}
+
+              {activeView !== "bookmarks" && (
                 <>
                   <div className="min-h-0 flex-1 overflow-y-auto">
-                    <div className="mx-auto w-full max-w-[768px] px-4 py-6">
-                      {!hasUserMessages && !messagesLoading ? (
-                        <div className="mb-8">
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {SUGGESTIONS.map((suggestion) => (
-                              <button
-                                key={suggestion}
-                                className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left text-sm text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-slate-900"
-                                onClick={() => {
-                                  setInput(
-                                    suggestion.slice(0, MAX_INPUT_LENGTH)
-                                  );
-                                  focusComposer();
-                                }}
-                              >
-                                {suggestion}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
+                    <div className="mx-auto w-full max-w-[1100px] px-4 py-6">
+                      <div className="rounded-[28px] bg-white p-8 shadow-[0_30px_120px_rgba(15,23,42,0.06)]">
+                        {!hasUserMessages && !messagesLoading && (
+                          <div className="mb-8">
+                            <div className="flex flex-col items-center gap-6 text-center">
+                              <div className="flex flex-col items-center gap-6">
+                                <OrbCanvas size={140} />
 
-                      {messagesLoading ? (
+                                <div className="text-center">
+                                  <div className="text-sm text-slate-500">Hello, {user.name || ""}</div>
+                                  <div className="mt-3 font-extrabold greeting-title">
+                                    <Typewriter text={"How can I assist you today?"} wordDelay={380} />
+                                  </div>
+                                </div>
+
+                                <div className="w-full flex justify-center">
+                                  <div className="flex flex-wrap items-center justify-center mt-4">
+                                    {SUGGESTIONS.map((suggestion) => (
+                                      <button
+                                        key={suggestion}
+                                        className="suggestion-pill"
+                                        onClick={() => {
+                                          setInput(suggestion.slice(0, MAX_INPUT_LENGTH));
+                                          focusComposer();
+                                        }}
+                                      >
+                                        {suggestion}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                      {messagesLoading && (
                         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500">
                           Loading conversation...
                         </div>
-                      ) : (
+                      )}
+
+                      {!messagesLoading && (
                         <div className="space-y-8">
                           {messages.map((message) => {
                             const isUser = message.role === "user";
@@ -842,7 +869,7 @@ const handlePdfClick = (item: CaseDigest) => {
                             if (isUser) {
                               return (
                                 <div key={message.id} className="flex justify-end">
-                                  <div className="max-w-[88%] rounded-3xl bg-blue-600 px-4 py-3 text-white shadow-sm sm:max-w-[75%]">
+                                  <div className="max-w-[88%] rounded-3xl bg-[#114C8D] px-4 py-3 text-white shadow-sm sm:max-w-[75%]">
                                     <div className="mb-2 text-[11px] font-semibold uppercase   text-blue-100">
                                       You
                                     </div>
@@ -870,22 +897,22 @@ const handlePdfClick = (item: CaseDigest) => {
 
                                 <div className="bg-transparent py-4">
                                   <div className="whitespace-pre-wrap text-[15px] leading-8 text-slate-700">
-                                    {message.content ? (
-                                      message.content
-                                    ) : message.streaming ? (
+                                    {message.content && (
+                                      <>{message.content}</>
+                                    )}
+
+                                    {!message.content && message.streaming && (
                                       <span
-                                        key={activeLoadingThought}
+                                        key={message.id + "-loading"}
                                         className="inline-block text-slate-500 transition-opacity duration-300"
                                       >
                                         {activeLoadingThought}
                                       </span>
-                                    ) : (
-                                      ""
                                     )}
 
-                                    {message.streaming ? (
-                                      <span className="ml-1 inline-block h-5 w-2 animate-pulse rounded-sm bg-blue-500 align-middle" />
-                                    ) : null}
+                                    {message.streaming && (
+                                      <span className="ml-1 inline-block h-5 w-2 animate-pulse rounded-sm bg-[#114C8D] align-middle" />
+                                    )}
                                   </div>
 
                                   {hasFinishedCases ? (
@@ -916,6 +943,7 @@ const handlePdfClick = (item: CaseDigest) => {
                           })}
                         </div>
                       )}
+                      </div>
                     </div>
                   </div>
 
@@ -960,7 +988,7 @@ const handlePdfClick = (item: CaseDigest) => {
                             <button
                               type="submit"
                               disabled={!canSend}
-                              className="inline-flex h-[48px] cursor-pointer w-[48px] items-center justify-center rounded-2xl bg-blue-600 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                              className="inline-flex h-[48px] cursor-pointer w-[48px] items-center justify-center rounded-2xl bg-[#114C8D] text-white transition hover:bg-[#0B3A6E] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
                               aria-label="Send message"
                             >
                               <svg

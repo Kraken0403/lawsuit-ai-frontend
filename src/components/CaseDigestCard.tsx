@@ -81,12 +81,12 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       title={label}
-      className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition ${
+      className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition ${
         disabled
           ? "cursor-not-allowed border-slate-200 bg-white text-slate-400"
           : active
-          ? "border-blue-200 bg-blue-50 text-blue-700"
-          : "border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+          ? "border-[#114C8D] bg-[#114C8D] text-white"
+          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
       }`}
     >
       {children}
@@ -108,17 +108,15 @@ export default function CaseDigestCard({
     <button
       type="button"
       onClick={() => onOpen(item)}
-      className="block w-full py-4 text-left transition hover:border-blue-200 cursor-pointer"
+      className="block w-full py-4 text-left transition cursor-pointer bg-white border border-slate-200 rounded-md shadow-sm hover:shadow-md"
     >
       <div className="text-sm font-semibold leading-6 text-slate-900">
         {index + 1}. {item.title}
       </div>
 
-      <div className="mt-1 text-xs text-blue-700">{item.citation}</div>
+      <div className="mt-1 text-xs text-slate-600">{item.citation}</div>
 
-      <div className="mt-3 text-sm leading-6 text-slate-600">
-        {item.summary}
-      </div>
+      <div className="mt-3 text-sm leading-6 text-slate-700">{item.summary}</div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <ActionButton

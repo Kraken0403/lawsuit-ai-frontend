@@ -1,11 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
+  --primary: #0C3A72;
+  --primary-dark: #062F52;
+  color-scheme: light;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
-  background: #020617;
 }
 
 html,
@@ -16,11 +17,9 @@ body,
 
 body {
   margin: 0;
-  color: #e2e8f0;
-  background:
-    radial-gradient(circle at top, rgba(34, 211, 238, 0.12), transparent 30%),
-    radial-gradient(circle at right, rgba(59, 130, 246, 0.08), transparent 25%),
-    linear-gradient(180deg, #020617 0%, #020617 100%);
+  color: #0f172a;
+  /* darker, moody gradient like reference */
+  background: linear-gradient(180deg,#071226 0%, #0b2540 50%, #11283c 100%);
 }
 
 * {
@@ -298,4 +297,152 @@ body {
     overflow-x: auto;
     white-space: nowrap;
   }
+}
+
+/* Orb and greeting animations */
+@keyframes orb-float {
+  0% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-8px) scale(1.03); }
+  100% { transform: translateY(0px) scale(1); }
+}
+
+@keyframes orb-pulse {
+  0% { filter: drop-shadow(0 6px 18px rgba(11,58,110,0.14)); }
+  50% { filter: drop-shadow(0 20px 40px rgba(11,58,110,0.18)); }
+  100% { filter: drop-shadow(0 6px 18px rgba(11,58,110,0.14)); }
+}
+
+@keyframes gradient-slide {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.orb-wrapper {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orb {
+  width: 120px;
+  height: 120px;
+  display: block;
+  animation: orb-float 4.6s ease-in-out infinite;
+}
+
+.orb-core {
+  transition: transform 0.3s ease;
+  transform-origin: center;
+  animation: orb-pulse 4.6s ease-in-out infinite;
+}
+
+.greeting-title {
+  background: linear-gradient(90deg, var(--primary), #1f5da8, var(--primary-dark));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  background-size: 200% 200%;
+  animation: gradient-slide 6s ease infinite;
+  text-shadow: 0 2px 12px rgba(12,58,114,0.10);
+  font-size: 40px;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+  padding-top: 6px;
+  overflow: visible;
+}
+
+/* Hero / centered card */
+.hero-panel {
+  background: linear-gradient(180deg, rgba(10,38,72,0.9), rgba(5,26,46,0.85));
+  border-radius: 24px;
+  padding: 48px;
+  color: #e6f2ff;
+  box-shadow: 0 40px 80px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+.hero-container {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.suggestion-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  margin: 8px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  color: black;
+  font-weight: 600;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  transition: transform 150ms ease, background 150ms ease, box-shadow 150ms ease;
+  box-sizing: border-box;
+  flex: 0 0 calc(50% - 16px);
+  max-width: calc(50% - 16px);
+  text-align: center;
+}
+
+.suggestion-pill:hover {
+  background: rgba(255,255,255,0.08);
+  box-shadow: none;
+  transform: none;
+}
+
+.hero-orb-wrap { display:flex; justify-content:center; }
+
+.suggestion-card {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow: 0 6px 20px rgba(2,6,23,0.06);
+  border: 1px solid rgba(15,23,42,0.04);
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  text-align: left;
+}
+
+.suggestion-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px rgba(11,58,110,0.09);
+  border-color: rgba(17,76,141,0.12);
+}
+
+.suggestion-title {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+@media (max-width: 640px) {
+  .orb-wrapper { width: 96px; height: 96px; }
+  .orb { width: 96px; height: 96px; }
+  .greeting-title { font-size: 22px; }
+}
+
+/* Typewriter */
+.typewriter {
+  display: inline-block;
+}
+
+.typewriter .typing-cursor {
+  display: inline-block;
+  margin-left: 6px;
+  vertical-align: bottom;
+}
+
+.case-html .highcourt,
+.case-html .judgtitle,
+.case-html .judgdate,
+.case-html .citations {
+  display: none !important;
 }
