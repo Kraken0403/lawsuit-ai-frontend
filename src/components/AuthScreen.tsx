@@ -195,7 +195,7 @@ export default function AuthScreen() {
           <div className="hidden lg:block">
             <div className="max-w-xl">
               <div className="mb-2 w-[300px] inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium">
-                <img className="w-full" src="/logo.png" alt="" />
+                <img className="w-full" src={`${import.meta.env.BASE_URL}logo.png`} alt="" />
               </div>
 
               <h1 className="text-[clamp(38px,5vw,64px)] font-semibold leading-[1.04] tracking-tight text-slate-950">
