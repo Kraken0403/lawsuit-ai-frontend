@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, KeyboardEvent, ReactNode } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import mammoth from "mammoth";
+import { useSpeechInput } from "./hooks/useSpeechInput";
+
 import {
   streamChat,
   type CaseDigest,
@@ -8,14 +12,26 @@ import {
 } from "./streamChat";
 import Sidebar from "./components/Sidebar";
 import CaseModal from "./components/CaseModal";
-import CaseDigestCard from "./components/CaseDigestCard";
 import AuthScreen from "./components/AuthScreen";
 import BookmarksPage from "./components/BookmarksPage";
-import OrbCanvas from "./components/OrbCanvas";
-import Typewriter from "./components/Typewriter";
+import WorkspacePane from "./components/workspace/WorkspacePane";
+import DraftingDock from "./components/drafting/DraftingDock";
 import { useAuth } from "./context/AuthContext";
+
+import SettingsPage from "./components/settings/SettingsPage";
+import {
+  draftingSettingsService,
+  type DraftingSettings,
+} from "./services/draftingSettingsService";
+import { draftDocumentService } from "./services/draftDocumentService";
+import {
+  draftAttachmentService,
+  type DraftAttachment,
+} from "./services/draftAttachmentService";
+
 import {
   conversationService,
+  type ConversationChatMode,
   type ConversationListItem,
 } from "./services/conversationService";
 import {
@@ -24,7 +40,6 @@ import {
 } from "./services/bookmarkService";
 import {
   buildStreamingThoughts,
-  makeStarterMessage,
   deriveConversationTitle,
   getCaseKeyFromDigest,
   mapStoredMessages,
@@ -33,57 +48,155 @@ import {
   type AppMessage,
 } from "./lib/appHelpers";
 
+import {
+  getChatModeForView,
+  getDraftingAnswerTypeFromTrace,
+  getViewForChatMode,
+  makeDraftingChatSummary,
+  makeWorkspaceStarterMessage,
+  type WorkspaceView,
+} from "./lib/workspaceMode";
+import {
+  buildConversationPath,
+  buildViewPath,
+  getRouteState,
+} from "./lib/appRoutes";
+
 type Message = AppMessage;
 
 const MAX_INPUT_LENGTH = 1000;
 const TYPING_SPEED_MS = 16;
+const DRAFT_AUTOSAVE_DELAY_MS = 2500;
 
-function Panel({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl bg-transparent">
-      <div className="py-3">
-        <div className="text-[11px] font-semibold uppercase   text-slate-500">
-          {title}
-        </div>
-      </div>
-      <div>{children}</div>
-    </section>
-  );
-}
+const DRAFTING_SUGGESTIONS = [
+  "Draft a legal notice for non-payment of invoice.",
+  "Draft a reply to a breach of contract allegation.",
+  "Draft a service agreement protective of the provider.",
+  "Draft a cease and desist notice for trademark misuse.",
+];
 
 function uuid() {
   return `${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
+function getDraftingArtifacts(messages: Message[]) {
+  const transformed = messages.map((message) => {
+    if (message.role !== "assistant") return message;
+
+    const answerType = getDraftingAnswerTypeFromTrace(message.trace);
+    if (answerType !== "drafting_draft") return message;
+
+    return {
+      ...message,
+      content: makeDraftingChatSummary(message.trace, message.content),
+      streaming: false,
+    };
+  });
+
+  return {
+    messages: transformed,
+  };
+}
+
+function getDraftContentFromDocument(document: any) {
+  if (typeof document?.draftHtml === "string" && document.draftHtml.trim()) {
+    return document.draftHtml;
+  }
+
+  if (
+    typeof document?.draftMarkdown === "string" &&
+    document.draftMarkdown.trim()
+  ) {
+    return document.draftMarkdown;
+  }
+
+  return "";
+}
+
+function DraftToggleIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-[22px] w-[22px]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 12h6" />
+      <path d="M9 16h6" />
+      <path d="M9 8h1" />
+    </svg>
+  );
+}
+
 export default function App() {
   const { user, loading: authLoading, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const [activeView, setActiveView] = useState<"chat" | "bookmarks" | "settings">("chat");
-  const [conversations, setConversations] = useState<ConversationListItem[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(
-    null
+  const routeState = useMemo(
+    () => getRouteState(location.pathname),
+    [location.pathname]
   );
-  
-  const [messages, setMessages] = useState<Message[]>([makeStarterMessage()]);
-  const [input, setInput] = useState("");
+
+  const activeView = routeState.activeView;
+  const workspaceView = routeState.workspaceView;
+  const activeConversationId = workspaceView ? routeState.conversationId : null;
+
+  const sidebarWorkspaceView: WorkspaceView = workspaceView ?? "chat";
+  const sidebarChatMode = getChatModeForView(sidebarWorkspaceView);
+  const currentChatMode = workspaceView ? getChatModeForView(workspaceView) : null;
+  const isDraftingMode = workspaceView === "drafting_document";
+
+  const [draftingSettings, setDraftingSettings] =
+    useState<DraftingSettings | null>(null);
+  const [draftingSettingsLoading, setDraftingSettingsLoading] = useState(false);
+
+  const [isDraftDockOpen, setIsDraftDockOpen] = useState(false);
+
+  const [conversations, setConversations] = useState<ConversationListItem[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    makeWorkspaceStarterMessage("chat"),
+  ]);
+  const [chatInput, setChatInput] = useState("");
+  const [draftingInput, setDraftingInput] = useState("");
+
+  const activeInput = isDraftingMode ? draftingInput : chatInput;
+
+  const setActiveInput = (value: string) => {
+    if (isDraftingMode) {
+      setDraftingInput(value);
+      return;
+    }
+
+    setChatInput(value);
+  };
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState("");
   const [selectedCase, setSelectedCase] = useState<CaseDigest | null>(null);
   const [bookmarks, setBookmarks] = useState<BookmarkedCase[]>([]);
   const [loadingThoughtIndex, setLoadingThoughtIndex] = useState(0);
-  const [activeAssistantId, setActiveAssistantId] = useState<string | null>(
-    null
-  );
+  const [activeAssistantId, setActiveAssistantId] = useState<string | null>(null);
   const [conversationsLoading, setConversationsLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [bookmarksLoading, setBookmarksLoading] = useState(false);
+  const [draftDocumentLoading, setDraftDocumentLoading] = useState(false);
   const [caseModalTab, setCaseModalTab] = useState<"case" | "summary">("case");
+  const [draftDocumentIdsByConversation, setDraftDocumentIdsByConversation] =
+    useState<Record<string, string>>({});
+  const [draftContentsByConversation, setDraftContentsByConversation] =
+    useState<Record<string, string>>({});
+  const [draftTitlesByConversation, setDraftTitlesByConversation] =
+    useState<Record<string, string>>({});
+  const [draftAttachmentsByConversation, setDraftAttachmentsByConversation] =
+    useState<Record<string, DraftAttachment[]>>({});
+  const [uploadingDraftAttachment, setUploadingDraftAttachment] = useState(false);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const activeAssistantRef = useRef<HTMLDivElement | null>(null);
@@ -95,15 +208,14 @@ export default function App() {
     fallback?: string;
   }>({ pending: false });
 
-  const canSend = useMemo(
-    () =>
-      input.trim().length > 0 &&
-      input.trim().length <= MAX_INPUT_LENGTH &&
-      !loading,
-    [input, loading]
-  );
-
-  const hasUserMessages = messages.some((message) => message.role === "user");
+  const activeDraftAnswerTypeRef = useRef<
+    "drafting_questions" | "drafting_draft" | null
+  >(null);
+  const draftStreamBufferRef = useRef("");
+  const pendingInitialMessageConversationRef = useRef<string | null>(null);
+  const draftDocumentIdsRef = useRef<Record<string, string>>({});
+  const draftTitlesRef = useRef<Record<string, string>>({});
+  const draftSaveTimersRef = useRef<Record<string, number | null>>({});
 
   const activeConversation = useMemo(
     () =>
@@ -112,7 +224,64 @@ export default function App() {
     [conversations, activeConversationId]
   );
 
-  const activeConversationTitle = activeConversation?.title || "New chat";
+  const activeConversationTitle =
+    activeConversation?.title || (isDraftingMode ? "Drafting Studio" : "New chat");
+
+  const currentDraftDocumentId =
+    (activeConversationId && draftDocumentIdsByConversation[activeConversationId]) ||
+    null;
+
+  const currentDraftText =
+    (activeConversationId && draftContentsByConversation[activeConversationId]) || "";
+
+  const currentDraftTitle =
+    (activeConversationId && draftTitlesByConversation[activeConversationId]) || "";
+
+  const currentDraftAttachments =
+    (activeConversationId && draftAttachmentsByConversation[activeConversationId]) || [];
+
+const speechInputBaseRef = useRef("");
+
+const draftingSpeech = useSpeechInput({
+  enabled: isDraftingMode,
+  languageHint: "en-IN",
+  onRecordingStart: () => {
+    speechInputBaseRef.current = draftingInput.trimEnd();
+  },
+  onInterimTranscript: (text) => {
+    const base = speechInputBaseRef.current.trimEnd();
+    const interim = String(text || "").trim();
+
+    const nextValue = interim
+      ? base
+        ? `${base}\n${interim}`
+        : interim
+      : base;
+
+    setDraftingInput(nextValue.slice(0, MAX_INPUT_LENGTH));
+  },
+  onFinalTranscript: (text) => {
+    const base = speechInputBaseRef.current.trimEnd();
+    const finalText = String(text || "").trim();
+
+    if (!finalText) {
+      setDraftingInput(base.slice(0, MAX_INPUT_LENGTH));
+      return;
+    }
+
+    const nextValue = base ? `${base}\n${finalText}` : finalText;
+    const clipped = nextValue.slice(0, MAX_INPUT_LENGTH);
+
+    speechInputBaseRef.current = clipped;
+    setDraftingInput(clipped);
+    focusComposer();
+  },
+  onCancelRestore: () => {
+    setDraftingInput(speechInputBaseRef.current.slice(0, MAX_INPUT_LENGTH));
+  },
+});
+
+  const dockConversationTitle = currentDraftTitle || activeConversationTitle;
 
   const lastAssistant = [...messages].reverse().find(
     (message) => message.role === "assistant"
@@ -127,6 +296,17 @@ export default function App() {
   const activeLoadingThought =
     streamingThoughts[loadingThoughtIndex] || phase || "Thinking";
 
+const canSend = useMemo(
+  () =>
+    activeInput.trim().length > 0 &&
+    activeInput.trim().length <= MAX_INPUT_LENGTH &&
+    !loading &&
+    Boolean(workspaceView),
+  [activeInput, loading, workspaceView]
+);
+
+  const hasUserMessages = messages.some((message) => message.role === "user");
+
   const bookmarkIndex = useMemo(() => {
     const map = new Map<string, BookmarkedCase>();
 
@@ -136,6 +316,91 @@ export default function App() {
 
     return map;
   }, [bookmarks]);
+
+  const draftingSources = useMemo(() => {
+    return isDraftingMode ? lastAssistant?.sources || [] : [];
+  }, [isDraftingMode, lastAssistant]);
+
+  const draftingRouter = useMemo(() => {
+    if (!isDraftingMode) return null;
+    const router = lastAssistant?.trace?.router;
+    return router && typeof router === "object"
+      ? (router as Record<string, unknown>)
+      : null;
+  }, [isDraftingMode, lastAssistant]);
+
+  const brandingForDock = useMemo(() => {
+    if (!draftingSettings) {
+      return {
+        mode: "none" as const,
+        lockBranding: true,
+      };
+    }
+
+    return {
+      mode:
+        draftingSettings.draftingBrandingMode === "HEADER_FOOTER"
+          ? ("header_footer" as const)
+          : draftingSettings.draftingBrandingMode === "LETTERHEAD"
+          ? ("letterhead" as const)
+          : ("none" as const),
+      headerImageUrl: draftingSettings.draftingHeaderImageUrl || null,
+      footerImageUrl: draftingSettings.draftingFooterImageUrl || null,
+      letterheadImageUrl: draftingSettings.draftingLetterheadImageUrl || null,
+      signatureImageUrl: draftingSettings.draftingSignatureImageUrl || null,
+      headerHeightPx: draftingSettings.draftingHeaderHeightPx || 110,
+      footerHeightPx: draftingSettings.draftingFooterHeightPx || 90,
+      letterheadHeightPx: draftingSettings.draftingLetterheadHeightPx || 130,
+      lockBranding:
+        typeof draftingSettings.draftingLockBranding === "boolean"
+          ? draftingSettings.draftingLockBranding
+          : true,
+    };
+  }, [draftingSettings]);
+
+  const draftingAnswerType =
+    typeof draftingRouter?.answerType === "string"
+      ? draftingRouter.answerType
+      : null;
+
+  const draftingMissingFields = Array.isArray(draftingRouter?.missingFields)
+    ? draftingRouter.missingFields
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+    : [];
+
+  const draftingExtractedFacts =
+    draftingRouter?.extractedFacts &&
+    typeof draftingRouter?.extractedFacts === "object"
+      ? (draftingRouter.extractedFacts as Record<string, unknown>)
+      : {};
+
+  const draftingObjective =
+    typeof draftingRouter?.draftingObjective === "string"
+      ? draftingRouter.draftingObjective
+      : "";
+
+  const modeSuggestions = isDraftingMode ? DRAFTING_SUGGESTIONS : SUGGESTIONS;
+  const composerPlaceholder = isDraftingMode
+    ? "Describe the legal draft you wanna create..."
+    : "Ask about a case, doctrine, holding, citation, or comparison...";
+  const greetingTitle = isDraftingMode
+    ? "What would you like to draft today?"
+    : "How can I assist you today?";
+
+  const hasDraftAvailable =
+    !!currentDraftText.trim() || !!currentDraftDocumentId || draftDocumentLoading;
+
+  const shouldRenderDraftDock = isDraftingMode && isDraftDockOpen;
+
+  const canToggleDraftDock =
+    isDraftingMode &&
+    (
+      hasDraftAvailable ||
+      phase === "Generating draft" ||
+      draftingAnswerType === "drafting_draft" ||
+      activeDraftAnswerTypeRef.current === "drafting_draft"
+    );
 
   const resizeTextarea = () => {
     const el = textareaRef.current;
@@ -168,6 +433,14 @@ export default function App() {
     clearTypingTimer();
     typingQueueRef.current = [];
     finalizePendingRef.current = { pending: false, fallback: undefined };
+  };
+
+  const clearDraftSaveTimer = (conversationId: string) => {
+    const timer = draftSaveTimersRef.current[conversationId];
+    if (timer) {
+      window.clearTimeout(timer);
+    }
+    draftSaveTimersRef.current[conversationId] = null;
   };
 
   const updateLastAssistant = (updater: (message: Message) => Message) => {
@@ -257,6 +530,24 @@ export default function App() {
     startTypingDrain();
   };
 
+  const syncDraftAnswerType = (trace?: StreamTrace | null) => {
+    const answerType = getDraftingAnswerTypeFromTrace(trace);
+
+    if (!answerType) return;
+
+    activeDraftAnswerTypeRef.current = answerType;
+
+    if (isDraftingMode && answerType === "drafting_draft") {
+      updateLastAssistant((last) => ({
+        ...last,
+        content:
+          last.content ||
+          "I’m drafting the document in the editor now. I’ll keep the chat brief and show the full draft in the workspace.",
+        streaming: true,
+      }));
+    }
+  };
+
   const attachAssistantMeta = ({
     sources,
     caseDigests,
@@ -266,6 +557,8 @@ export default function App() {
     caseDigests?: CaseDigest[];
     trace?: StreamTrace | null;
   }) => {
+    syncDraftAnswerType(trace);
+
     updateLastAssistant((last) => ({
       ...last,
       sources:
@@ -280,48 +573,65 @@ export default function App() {
     }));
   };
 
-  const loadConversations = async () => {
-    const response = await conversationService.list();
+  const applyMessagesForWorkspace = (
+    view: WorkspaceView,
+    _conversationId: string | null,
+    nextMessages: Message[]
+  ) => {
+    if (view === "drafting_document") {
+      const { messages: transformed } = getDraftingArtifacts(nextMessages);
+      setMessages(
+        transformed.length ? transformed : [makeWorkspaceStarterMessage(view)]
+      );
+      return;
+    }
+
+    setMessages(
+      nextMessages.length ? nextMessages : [makeWorkspaceStarterMessage(view)]
+    );
+  };
+
+  const loadConversations = async (chatMode: ConversationChatMode) => {
+    const response = await conversationService.list(chatMode);
     setConversations(response.conversations);
     return response.conversations;
   };
 
-  // const loadBookmarks = async () => {
-  //   setBookmarksLoading(true);
-  //   try {
-  //     const response = await bookmarkService.list();
-  //     setBookmarks(response.bookmarks);
-  //     return response.bookmarks;
-  //   } finally {
-  //     setBookmarksLoading(false);
-  //   }
-  // };
+  const extractTextFromDraftFile = async (file: File) => {
+    const lowerName = file.name.toLowerCase();
 
-  const loadConversationMessages = async (conversationId: string) => {
-    setMessagesLoading(true);
-
-    try {
-      const response = await conversationService.getMessages(conversationId);
-      setMessages(mapStoredMessages(response.messages));
-    } finally {
-      setMessagesLoading(false);
+    if (
+      file.type === "text/plain" ||
+      file.type === "text/markdown" ||
+      lowerName.endsWith(".txt") ||
+      lowerName.endsWith(".md")
+    ) {
+      return (await file.text()).trim();
     }
+
+    if (
+      file.type ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      lowerName.endsWith(".docx")
+    ) {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      return String(result.value || "").trim();
+    }
+
+    throw new Error("Supported formats for now: .txt, .md, .docx");
   };
 
-  const handleSelectConversation = async (conversationId: string) => {
-    if (loading) return;
+  const ensureDraftingConversationForUpload = async () => {
+    if (activeConversationId) return activeConversationId;
 
-    setActiveView("chat");
-    setActiveConversationId(conversationId);
-    await loadConversationMessages(conversationId);
-  };
-
-  const handleNewConversation = async () => {
-    const response = await conversationService.create("New chat");
+    const chatMode = getChatModeForView("drafting_document");
+    const response = await conversationService.create("New chat", chatMode);
 
     const newConversation: ConversationListItem = {
       id: response.conversation.id,
       title: response.conversation.title,
+      chatMode: response.conversation.chatMode,
       createdAt: response.conversation.createdAt,
       updatedAt: response.conversation.updatedAt,
       messageCount: 0,
@@ -330,48 +640,263 @@ export default function App() {
       lastMessageAt: response.conversation.updatedAt,
     };
 
-    setConversations((prev) => [
-      newConversation,
-      ...prev.filter((item) => item.id !== newConversation.id),
-    ]);
+    setConversations((prev) => [newConversation, ...prev]);
+    setDraftContentsByConversation((prev) => ({
+      ...prev,
+      [newConversation.id]: "",
+    }));
+    setDraftTitlesByConversation((prev) => ({
+      ...prev,
+      [newConversation.id]: response.conversation.title || "Untitled draft",
+    }));
+    setDraftDocumentIdsByConversation((prev) => ({
+      ...prev,
+      [newConversation.id]: "",
+    }));
+    setDraftAttachmentsByConversation((prev) => ({
+      ...prev,
+      [newConversation.id]: [],
+    }));
 
-    setActiveView("chat");
-    setActiveConversationId(newConversation.id);
-    setMessages([makeStarterMessage()]);
-    setInput("");
+    navigate(buildConversationPath("drafting_document", newConversation.id), {
+      replace: true,
+    });
+
+    return newConversation.id;
+  };
+
+  const handleRemoveDraftAttachment = (attachmentId: string) => {
+  if (!activeConversationId) return;
+
+  setDraftAttachmentsByConversation((prev) => ({
+    ...prev,
+    [activeConversationId]: (prev[activeConversationId] || []).filter(
+      (item) => item.id !== attachmentId
+    ),
+  }));
+};
+
+  const handleDraftFileUpload = async (file: File) => {
+    if (!isDraftingMode) return;
+
+    try {
+      setUploadingDraftAttachment(true);
+
+      const conversationId = await ensureDraftingConversationForUpload();
+      const text = await extractTextFromDraftFile(file);
+
+      if (!text.trim()) {
+        throw new Error("Could not extract text from the uploaded file.");
+      }
+
+      const response = await draftAttachmentService.upload({
+        conversationId,
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        text,
+      });
+
+      setDraftAttachmentsByConversation((prev) => {
+        const current = prev[conversationId] || [];
+        return {
+          ...prev,
+          [conversationId]: [response.attachment, ...current],
+        };
+      });
+    } catch (error) {
+      console.error("Failed to upload drafting format", error);
+    } finally {
+      setUploadingDraftAttachment(false);
+    }
+  };
+
+  const hydrateDraftDocumentForConversation = async (
+    conversationId: string,
+    preferredDocumentId?: string | null
+  ) => {
+    setDraftDocumentLoading(true);
+
+    try {
+      let documentId =
+        preferredDocumentId ||
+        draftDocumentIdsRef.current[conversationId] ||
+        null;
+
+      if (!documentId) {
+        const listResponse = await draftDocumentService.listByConversation(
+          conversationId
+        );
+
+        const latestDocument = Array.isArray(listResponse?.documents)
+          ? listResponse.documents[0]
+          : null;
+
+        documentId = latestDocument?.id || null;
+      }
+
+      if (!documentId) {
+        setDraftDocumentIdsByConversation((prev) => ({
+          ...prev,
+          [conversationId]: "",
+        }));
+        setDraftContentsByConversation((prev) => ({
+          ...prev,
+          [conversationId]: "",
+        }));
+        setDraftTitlesByConversation((prev) => ({
+          ...prev,
+          [conversationId]: "",
+        }));
+        return null;
+      }
+
+      const documentResponse = await draftDocumentService.getDocument(documentId);
+      const document = documentResponse?.document;
+
+      if (!document?.id) {
+        return null;
+      }
+
+      const nextContent = getDraftContentFromDocument(document);
+      const nextTitle = String(document.title || "").trim();
+
+      setDraftDocumentIdsByConversation((prev) => ({
+        ...prev,
+        [conversationId]: document.id,
+      }));
+      setDraftContentsByConversation((prev) => ({
+        ...prev,
+        [conversationId]: nextContent,
+      }));
+      setDraftTitlesByConversation((prev) => ({
+        ...prev,
+        [conversationId]: nextTitle,
+      }));
+
+      return document;
+    } catch (error) {
+      console.error("Failed to hydrate draft document", error);
+      return null;
+    } finally {
+      setDraftDocumentLoading(false);
+    }
+  };
+
+  const scheduleDraftPersist = (
+    conversationId: string,
+    html: string,
+    explicitTitle?: string
+  ) => {
+    clearDraftSaveTimer(conversationId);
+
+    draftSaveTimersRef.current[conversationId] = window.setTimeout(async () => {
+      const documentId = draftDocumentIdsRef.current[conversationId];
+      if (!documentId) return;
+
+      const title =
+        explicitTitle ??
+        draftTitlesRef.current[conversationId] ??
+        conversations.find((item) => item.id === conversationId)?.title ??
+        "Untitled draft";
+
+      try {
+        const response = await draftDocumentService.updateDocument(documentId, {
+          title,
+          draftHtml: html,
+          status: "DRAFT",
+        });
+
+        const updatedDocument = response?.document;
+        if (!updatedDocument) return;
+
+        const nextContent = getDraftContentFromDocument(updatedDocument);
+        const nextTitle = String(document.title || title || "").trim();
+
+        setDraftContentsByConversation((prev) => ({
+          ...prev,
+          [conversationId]: nextContent || html,
+        }));
+        setDraftTitlesByConversation((prev) => ({
+          ...prev,
+          [conversationId]: nextTitle,
+        }));
+      } catch (error) {
+        console.error("Failed to autosave draft document", error);
+      }
+    }, DRAFT_AUTOSAVE_DELAY_MS);
+  };
+
+  const handleSelectConversation = async (conversationId: string) => {
+    if (loading) return;
+
+    const conversation = conversations.find((item) => item.id === conversationId);
+    const targetView = conversation
+      ? getViewForChatMode(conversation.chatMode)
+      : "chat";
+
+    navigate(buildConversationPath(targetView, conversationId));
+  };
+
+  const handleNewConversation = async (view?: "chat" | "drafting_document") => {
+    const targetView = view || workspaceView || "chat";
+    const chatMode = getChatModeForView(targetView);
+
+    const response = await conversationService.create("New chat", chatMode);
+
+    const newConversation: ConversationListItem = {
+      id: response.conversation.id,
+      title: response.conversation.title,
+      chatMode: response.conversation.chatMode,
+      createdAt: response.conversation.createdAt,
+      updatedAt: response.conversation.updatedAt,
+      messageCount: 0,
+      preview: "",
+      lastMessageRole: null,
+      lastMessageAt: response.conversation.updatedAt,
+    };
+
+    setConversations((prev) => [newConversation, ...prev]);
+    setMessages([makeWorkspaceStarterMessage(targetView)]);
+    setActiveInput("");
+
+    if (targetView === "drafting_document") {
+      setDraftContentsByConversation((prev) => ({
+        ...prev,
+        [newConversation.id]: "",
+      }));
+      setDraftTitlesByConversation((prev) => ({
+        ...prev,
+        [newConversation.id]: response.conversation.title || "Untitled draft",
+      }));
+      setDraftDocumentIdsByConversation((prev) => ({
+        ...prev,
+        [newConversation.id]: "",
+      }));
+      setDraftAttachmentsByConversation((prev) => ({
+        ...prev,
+        [newConversation.id]: [],
+      }));
+      setIsDraftDockOpen(false);
+    }
+
+    navigate(buildConversationPath(targetView, newConversation.id));
     focusComposer();
   };
 
-  const handleShareChat = async () => {
-    const url = new URL(window.location.href);
-
-    if (activeView === "chat" && activeConversationId) {
-      url.searchParams.set("conversation", activeConversationId);
-    } else {
-      url.searchParams.delete("conversation");
-    }
-
-    try {
-      await navigator.clipboard.writeText(url.toString());
-    } catch (error) {
-      console.error("Failed to copy share link", error);
-    }
+  const handleCaseOpen = (item: CaseDigest) => {
+    setCaseModalTab("case");
+    setSelectedCase(item);
   };
 
-const handleCaseOpen = (item: CaseDigest) => {
-  setCaseModalTab("case");
-  setSelectedCase(item);
-};
+  const handleCaseSummarize = (item: CaseDigest) => {
+    setCaseModalTab("summary");
+    setSelectedCase(item);
+  };
 
-const handleCaseSummarize = (item: CaseDigest) => {
-  setCaseModalTab("summary");
-  setSelectedCase(item);
-};
-
-const handlePdfClick = (item: CaseDigest) => {
-  setCaseModalTab("case");
-  setSelectedCase(item);
-};
+  const handlePdfClick = (item: CaseDigest) => {
+    setCaseModalTab("case");
+    setSelectedCase(item);
+  };
 
   const handleToggleBookmark = async (item: CaseDigest) => {
     const key = getCaseKeyFromDigest(item);
@@ -397,10 +922,6 @@ const handlePdfClick = (item: CaseDigest) => {
     setBookmarks((prev) => [response.bookmark, ...prev]);
   };
 
-  // const handlePdfClick = (item: CaseDigest) => {
-  //   setSelectedCase(item);
-  // };
-
   const handleOpenBookmark = (bookmark: BookmarkedCase) => {
     setSelectedCase(bookmarkToCaseDigest(bookmark));
   };
@@ -410,9 +931,32 @@ const handlePdfClick = (item: CaseDigest) => {
     setBookmarks((prev) => prev.filter((item) => item.id !== bookmark.id));
   };
 
+const handleSuggestionClick = (value: string) => {
+  setActiveInput(value.slice(0, MAX_INPUT_LENGTH));
+  focusComposer();
+};
+
+const handleQuickReply = (value: string) => {
+  const prev = activeInput;
+  const next = !prev.trim()
+    ? value.slice(0, MAX_INPUT_LENGTH)
+    : `${prev}\n${value}`.slice(0, MAX_INPUT_LENGTH);
+
+  setActiveInput(next);
+  focusComposer();
+};
+
   useEffect(() => {
-    resizeTextarea();
-  }, [input]);
+    draftDocumentIdsRef.current = draftDocumentIdsByConversation;
+  }, [draftDocumentIdsByConversation]);
+
+  useEffect(() => {
+    draftTitlesRef.current = draftTitlesByConversation;
+  }, [draftTitlesByConversation]);
+
+useEffect(() => {
+  resizeTextarea();
+}, [activeInput]);
 
   useEffect(() => {
     if (!loading) {
@@ -437,64 +981,57 @@ const handlePdfClick = (item: CaseDigest) => {
   }, [activeAssistantId]);
 
   useEffect(() => {
+    if (!isDraftingMode) {
+      setIsDraftDockOpen(false);
+    }
+  }, [isDraftingMode]);
+
+  useEffect(() => {
+    if (!isDraftingMode) return;
+
+    const shouldAutoOpenDock =
+      phase === "Generating draft" ||
+      draftingAnswerType === "drafting_draft";
+
+    if (shouldAutoOpenDock) {
+      setIsDraftDockOpen(true);
+    }
+  }, [isDraftingMode, phase, draftingAnswerType]);
+
+  useEffect(() => {
+    setIsDraftDockOpen(false);
+  }, [activeConversationId]);
+
+  useEffect(() => {
     if (!user) {
       setConversations([]);
-      setActiveConversationId(null);
-      setMessages([makeStarterMessage()]);
+      setMessages([makeWorkspaceStarterMessage("chat")]);
       setBookmarks([]);
-      setActiveView("chat");
+      setDraftDocumentIdsByConversation({});
+      setDraftContentsByConversation({});
+      setDraftTitlesByConversation({});
+      setDraftAttachmentsByConversation({});
+      pendingInitialMessageConversationRef.current = null;
+      setIsDraftDockOpen(false);
       return;
     }
 
     let cancelled = false;
 
     (async () => {
-      setConversationsLoading(true);
+      setBookmarksLoading(true);
 
       try {
-        const [conversationResponse, bookmarksResponse] = await Promise.all([
-          conversationService.list(),
-          bookmarkService.list(),
-        ]);
-
-        if (cancelled) return;
-
-        setConversations(conversationResponse.conversations);
-        setBookmarks(bookmarksResponse.bookmarks);
-
-        const urlConversationId = new URL(window.location.href).searchParams.get(
-          "conversation"
-        );
-
-        const initialConversationId =
-          (urlConversationId &&
-            conversationResponse.conversations.find(
-              (item) => item.id === urlConversationId
-            )?.id) ||
-          conversationResponse.conversations[0]?.id ||
-          null;
-
-        setActiveConversationId(initialConversationId);
-
-        if (initialConversationId) {
-          const messageResponse = await conversationService.getMessages(
-            initialConversationId
-          );
-
-          if (!cancelled) {
-            setMessages(mapStoredMessages(messageResponse.messages));
-          }
-        } else {
-          setMessages([makeStarterMessage()]);
+        const response = await bookmarkService.list();
+        if (!cancelled) {
+          setBookmarks(response.bookmarks);
         }
       } catch (error) {
         if (!cancelled) {
           console.error(error);
-          setMessages([makeStarterMessage()]);
         }
       } finally {
         if (!cancelled) {
-          setConversationsLoading(false);
           setBookmarksLoading(false);
         }
       }
@@ -506,28 +1043,197 @@ const handlePdfClick = (item: CaseDigest) => {
   }, [user]);
 
   useEffect(() => {
-    const url = new URL(window.location.href);
+    if (!user) return;
 
-    if (activeView === "chat" && activeConversationId) {
-      url.searchParams.set("conversation", activeConversationId);
-    } else {
-      url.searchParams.delete("conversation");
-    }
+    let cancelled = false;
 
-    window.history.replaceState({}, "", url.toString());
-  }, [activeConversationId, activeView]);
+    (async () => {
+      setConversationsLoading(true);
+
+      try {
+        const conversationResponse = await conversationService.list(sidebarChatMode);
+
+        if (cancelled) return;
+
+        setConversations(conversationResponse.conversations);
+
+        if (!workspaceView) {
+          setMessagesLoading(false);
+          return;
+        }
+
+        const targetConversationId =
+          (activeConversationId &&
+            conversationResponse.conversations.find(
+              (item) => item.id === activeConversationId
+            )?.id) ||
+          conversationResponse.conversations[0]?.id ||
+          null;
+
+        if (!targetConversationId) {
+          if (!cancelled) {
+            setMessages([makeWorkspaceStarterMessage(workspaceView)]);
+            setMessagesLoading(false);
+          }
+          return;
+        }
+
+        if (activeConversationId !== targetConversationId) {
+          navigate(buildConversationPath(workspaceView, targetConversationId), {
+            replace: true,
+          });
+          return;
+        }
+
+        if (
+          pendingInitialMessageConversationRef.current &&
+          pendingInitialMessageConversationRef.current === targetConversationId
+        ) {
+          return;
+        }
+
+        setMessagesLoading(true);
+
+        try {
+          const messageResponse = await conversationService.getMessages(
+            targetConversationId
+          );
+
+          if (!cancelled) {
+            applyMessagesForWorkspace(
+              workspaceView,
+              targetConversationId,
+              mapStoredMessages(messageResponse.messages)
+            );
+          }
+        } finally {
+          if (!cancelled) {
+            setMessagesLoading(false);
+          }
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error(error);
+          setConversations([]);
+          if (workspaceView) {
+            setMessages([makeWorkspaceStarterMessage(workspaceView)]);
+          }
+          setMessagesLoading(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setConversationsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, sidebarChatMode, workspaceView, activeConversationId, navigate]);
+
+  useEffect(() => {
+    if (!user || !isDraftingMode || !activeConversationId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const document = await hydrateDraftDocumentForConversation(activeConversationId);
+
+      if (cancelled || !document) return;
+
+      const nextContent = getDraftContentFromDocument(document);
+      if (!nextContent.trim()) return;
+
+      setDraftContentsByConversation((prev) => ({
+        ...prev,
+        [activeConversationId]: nextContent,
+      }));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, isDraftingMode, activeConversationId]);
+
+  useEffect(() => {
+    if (!user || !isDraftingMode || !activeConversationId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await draftAttachmentService.list(activeConversationId);
+
+        if (!cancelled) {
+          setDraftAttachmentsByConversation((prev) => ({
+            ...prev,
+            [activeConversationId]: response.attachments || [],
+          }));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load drafting uploads", error);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, isDraftingMode, activeConversationId]);
 
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
       resetTypingEngine();
+      pendingInitialMessageConversationRef.current = null;
+
+      Object.keys(draftSaveTimersRef.current).forEach((conversationId) => {
+        clearDraftSaveTimer(conversationId);
+      });
     };
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setDraftingSettings(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      setDraftingSettingsLoading(true);
+
+      try {
+        const response = await draftingSettingsService.getSettings();
+
+        if (!cancelled) {
+          setDraftingSettings(response.settings);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load drafting settings", error);
+          setDraftingSettings(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setDraftingSettingsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const stopStreaming = () => {
     abortRef.current?.abort();
     abortRef.current = null;
     resetTypingEngine();
+    pendingInitialMessageConversationRef.current = null;
     setLoading(false);
     setPhase("");
     setActiveAssistantId(null);
@@ -535,20 +1241,27 @@ const handlePdfClick = (item: CaseDigest) => {
   };
 
   const sendCurrentMessage = async () => {
-    if (!canSend) return;
+    if (!canSend || !workspaceView || !currentChatMode) return;
 
-    const query = input.trim().slice(0, MAX_INPUT_LENGTH);
+    const query = activeInput.trim().slice(0, MAX_INPUT_LENGTH);
     const controller = new AbortController();
     abortRef.current = controller;
 
     let conversationId = activeConversationId;
 
+    activeDraftAnswerTypeRef.current = null;
+    draftStreamBufferRef.current = "";
+
+    setLoading(true);
+    setPhase("Thinking");
+
     if (!conversationId) {
-      const response = await conversationService.create("New chat");
+      const response = await conversationService.create("New chat", currentChatMode);
 
       const createdConversation: ConversationListItem = {
         id: response.conversation.id,
         title: response.conversation.title,
+        chatMode: response.conversation.chatMode,
         createdAt: response.conversation.createdAt,
         updatedAt: response.conversation.updatedAt,
         messageCount: 0,
@@ -558,19 +1271,42 @@ const handlePdfClick = (item: CaseDigest) => {
       };
 
       conversationId = createdConversation.id;
+      pendingInitialMessageConversationRef.current = conversationId;
       setConversations((prev) => [createdConversation, ...prev]);
-      setActiveConversationId(conversationId);
-      setMessages([makeStarterMessage()]);
+
+      if (workspaceView === "drafting_document") {
+        setDraftContentsByConversation((prev) => ({
+          ...prev,
+          [conversationId!]: "",
+        }));
+        setDraftTitlesByConversation((prev) => ({
+          ...prev,
+          [conversationId!]: createdConversation.title || "Untitled draft",
+        }));
+        setDraftDocumentIdsByConversation((prev) => ({
+          ...prev,
+          [conversationId!]: "",
+        }));
+        setDraftAttachmentsByConversation((prev) => ({
+          ...prev,
+          [conversationId!]: [],
+        }));
+      }
+
+      navigate(buildConversationPath(workspaceView, conversationId), {
+        replace: true,
+      });
     }
 
     const assistantId = uuid();
 
     resetTypingEngine();
-    setInput("");
-    setLoading(true);
-    setPhase("Thinking");
+    if (workspaceView === "drafting_document") {
+        setDraftingInput("");
+      } else {
+        setChatInput("");
+      }
     setActiveAssistantId(assistantId);
-    setActiveView("chat");
 
     setConversations((prev) =>
       prev.map((conversation) =>
@@ -583,11 +1319,19 @@ const handlePdfClick = (item: CaseDigest) => {
       )
     );
 
+    if (workspaceView === "drafting_document" && conversationId) {
+      setDraftTitlesByConversation((prev) => ({
+        ...prev,
+        [conversationId!]: deriveConversationTitle(query),
+      }));
+    }
+
     setMessages((prev) => {
+      const starterContent = makeWorkspaceStarterMessage(workspaceView).content;
       const base =
         prev.length === 1 &&
         prev[0].role === "assistant" &&
-        prev[0].content === makeStarterMessage().content
+        prev[0].content === starterContent
           ? []
           : prev;
 
@@ -613,18 +1357,23 @@ const handlePdfClick = (item: CaseDigest) => {
       ];
     });
 
+    const currentAttachmentIds =
+      (conversationId &&
+        (draftAttachmentsByConversation[conversationId] || []).map((item) => item.id)) ||
+      [];
+
     try {
       await streamChat(
-        { conversationId, query },
+        {
+          conversationId,
+          query,
+          chatMode: currentChatMode,
+          saveDraftDocument: isDraftingMode,
+          documentTitle: deriveConversationTitle(query),
+          attachmentIds: currentAttachmentIds,
+        },
         (event) => {
           const streamedConversationId = event.conversationId || conversationId;
-
-          if (
-            streamedConversationId &&
-            streamedConversationId !== activeConversationId
-          ) {
-            setActiveConversationId(streamedConversationId);
-          }
 
           if (event.type === "status") {
             setPhase(event.phase || "Thinking");
@@ -644,6 +1393,22 @@ const handlePdfClick = (item: CaseDigest) => {
           }
 
           if (event.type === "delta") {
+            const answerType = activeDraftAnswerTypeRef.current;
+
+            if (isDraftingMode && answerType === "drafting_draft") {
+              draftStreamBufferRef.current += event.text;
+              setPhase("Generating draft");
+
+              if (streamedConversationId) {
+                setDraftContentsByConversation((prev) => ({
+                  ...prev,
+                  [streamedConversationId]: draftStreamBufferRef.current,
+                }));
+              }
+
+              return;
+            }
+
             setPhase("Streaming answer");
             enqueueAssistantDelta(event.text);
             return;
@@ -654,6 +1419,43 @@ const handlePdfClick = (item: CaseDigest) => {
             setPhase("");
             setActiveAssistantId(null);
             abortRef.current = null;
+            pendingInitialMessageConversationRef.current = null;
+
+            const answerType = activeDraftAnswerTypeRef.current;
+
+            if (isDraftingMode && answerType === "drafting_draft") {
+              const fullDraft = draftStreamBufferRef.current.trim();
+
+              if (fullDraft && streamedConversationId) {
+                setDraftContentsByConversation((prev) => ({
+                  ...prev,
+                  [streamedConversationId]: fullDraft,
+                }));
+              }
+
+              if (event.draftDocumentId && streamedConversationId) {
+                setDraftDocumentIdsByConversation((prev) => ({
+                  ...prev,
+                  [streamedConversationId]: event.draftDocumentId!,
+                }));
+
+                void hydrateDraftDocumentForConversation(
+                  streamedConversationId,
+                  event.draftDocumentId
+                );
+              }
+
+              updateLastAssistant((last) => ({
+                ...last,
+                content: makeDraftingChatSummary(last.trace, fullDraft),
+                streaming: false,
+              }));
+
+              draftStreamBufferRef.current = "";
+              activeDraftAnswerTypeRef.current = null;
+              void loadConversations(currentChatMode);
+              return;
+            }
 
             if (
               typingQueueRef.current.length === 0 &&
@@ -667,7 +1469,21 @@ const handlePdfClick = (item: CaseDigest) => {
               };
             }
 
-            void loadConversations();
+            if (event.draftDocumentId && streamedConversationId) {
+              setDraftDocumentIdsByConversation((prev) => ({
+                ...prev,
+                [streamedConversationId]: event.draftDocumentId!,
+              }));
+
+              void hydrateDraftDocumentForConversation(
+                streamedConversationId,
+                event.draftDocumentId
+              );
+            }
+
+            activeDraftAnswerTypeRef.current = null;
+            draftStreamBufferRef.current = "";
+            void loadConversations(currentChatMode);
             return;
           }
 
@@ -677,6 +1493,10 @@ const handlePdfClick = (item: CaseDigest) => {
             setActiveAssistantId(null);
             abortRef.current = null;
             resetTypingEngine();
+            pendingInitialMessageConversationRef.current = null;
+            activeDraftAnswerTypeRef.current = null;
+            draftStreamBufferRef.current = "";
+
             updateLastAssistant((last) => ({
               ...last,
               content: event.message || "Something went wrong.",
@@ -697,6 +1517,10 @@ const handlePdfClick = (item: CaseDigest) => {
       setActiveAssistantId(null);
       abortRef.current = null;
       resetTypingEngine();
+      pendingInitialMessageConversationRef.current = null;
+      activeDraftAnswerTypeRef.current = null;
+      draftStreamBufferRef.current = "";
+
       updateLastAssistant((last) => ({
         ...last,
         content: "Stream failed. Check backend route and API base URL.",
@@ -717,7 +1541,7 @@ const handlePdfClick = (item: CaseDigest) => {
     }
   };
 
-  const remainingChars = MAX_INPUT_LENGTH - input.length;
+  const remainingChars = MAX_INPUT_LENGTH - activeInput.length;
 
   if (authLoading) {
     return (
@@ -740,67 +1564,15 @@ const handlePdfClick = (item: CaseDigest) => {
             activeConversationId={activeConversationId}
             loading={conversationsLoading}
             activeView={activeView}
-            onChangeView={setActiveView}
+            onChangeView={(view) => navigate(buildViewPath(view))}
             onSelectConversation={handleSelectConversation}
             onNewChat={handleNewConversation}
             userName={user.name || user.email}
             onLogout={logout}
+            autoCollapse={isDraftingMode}
           />
 
           <main className="flex min-w-0 flex-1 flex-col lg:h-screen">
-            <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl">
-              <div className="mx-auto flex w-full items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-                <div className="min-w-0">
-                  <div className="text-[11px] font-semibold uppercase   text-slate-500">
-                    {activeView === "bookmarks" ? "Saved cases" : "Chat"}
-                  </div>
-                  <div className="truncate text-[15px] font-semibold text-slate-900 sm:text-[16px]">
-                    {activeView === "bookmarks"
-                      ? "Bookmarks"
-                      : activeConversationTitle}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-
-                  <button
-                    type="button"
-                    onClick={handleShareChat}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
-                      <path d="M12 16V3" />
-                      <path d="m7 8 5-5 5 5" />
-                    </svg>
-                    <span>Export</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {}}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-[#114C8D] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#0B3A6E]"
-                  >
-                    Upgrade
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={logout}
-                    className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
-                  >
-                    Logout
-                  </button>
-                </div>
-              </div>
-            </header>
-
             <div className="flex min-h-0 flex-1 flex-col">
               {activeView === "bookmarks" && (
                 <div className="min-h-0 flex-1 overflow-y-auto">
@@ -813,231 +1585,173 @@ const handlePdfClick = (item: CaseDigest) => {
                 </div>
               )}
 
-              {activeView !== "bookmarks" && (
-                <>
-                  <div className="min-h-0 flex-1 overflow-y-auto">
-                    <div className="mx-auto w-full max-w-[800px] px-4 py-6">
-                      <div className="rounded-[28px] p-8 ">
-                        {!hasUserMessages && !messagesLoading && (
-                          <div className="mb-8">
-                            <div className="flex flex-col items-center gap-6 text-center">
-                              <div className="flex flex-col items-center gap-6">
-                                <OrbCanvas size={140} />
+              {activeView === "settings" && (
+                <SettingsPage
+                  initialSettings={draftingSettings}
+                  loading={draftingSettingsLoading}
+                  onSettingsSaved={setDraftingSettings}
+                />
+              )}
 
-                                <div className="text-center">
-                                  <div className="text-sm text-slate-500">Hello, {user.name || ""}</div>
-                                  <div className="mt-3 font-extrabold greeting-title">
-                                    <Typewriter text={"How can I assist you today?"} wordDelay={380} />
-                                  </div>
-                                </div>
+              {workspaceView === "chat" && (
+                <WorkspacePane
+                  messages={messages}
+                  messagesLoading={messagesLoading}
+                  hasUserMessages={hasUserMessages}
+                  userName={user.name || user.email}
+                  greetingTitle={greetingTitle}
+                  suggestions={modeSuggestions}
+                  isDraftingMode={false}
+                  activeAssistantId={activeAssistantId}
+                  activeAssistantRef={activeAssistantRef}
+                  activeLoadingThought={activeLoadingThought}
+                  isCaseBookmarked={(item) =>
+                    bookmarkIndex.has(getCaseKeyFromDigest(item))
+                  }
+                  onCaseOpen={handleCaseOpen}
+                  onCaseSummarize={handleCaseSummarize}
+                  onToggleBookmark={handleToggleBookmark}
+                  onPdfClick={handlePdfClick}
+                  onSuggestionClick={handleSuggestionClick}
+                  onQuickReply={handleQuickReply}
+                  textareaRef={textareaRef}
+                  input={chatInput}
+                  placeholder={composerPlaceholder}
+                  maxInputLength={MAX_INPUT_LENGTH}
+                  remainingChars={remainingChars}
+                  canSend={canSend}
+                  loading={loading}
+                  onInputChange={setChatInput}
+                  onSubmit={onSubmit}
+                  onComposerKeyDown={onComposerKeyDown}
+                  onStop={stopStreaming}
+                />
+              )}
 
-                                <div className="w-full flex justify-center">
-                                  <div className="flex flex-wrap items-center justify-center mt-4">
-                                    {SUGGESTIONS.map((suggestion) => (
-                                      <button
-                                        key={suggestion}
-                                        className="suggestion-pill"
-                                        onClick={() => {
-                                          setInput(suggestion.slice(0, MAX_INPUT_LENGTH));
-                                          focusComposer();
-                                        }}
-                                      >
-                                        {suggestion}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
+              {workspaceView === "drafting_document" && (
+                <div className="relative flex min-h-0 flex-1 overflow-hidden bg-slate-50">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!canToggleDraftDock) return;
+                      setIsDraftDockOpen((prev) => !prev);
+                    }}
+                    disabled={!canToggleDraftDock}
+                    className={`cursor-pointer absolute right-5 top-5 z-10 flex h-11 w-11 items-center justify-center rounded-xl border transition ${
+                      canToggleDraftDock
+                        ? "border-[#cfc4ff] bg-white text-[#0b3a6f] shadow-sm hover:bg-[#f5f2ff]"
+                        : "border-slate-200 bg-slate-100 text-slate-300 cursor-not-allowed"
+                    }`}
+                    title={isDraftDockOpen ? "Hide draft" : "Open draft"}
+                    aria-label={isDraftDockOpen ? "Hide draft" : "Open draft"}
+                  >
+                    <DraftToggleIcon />
+                    {!isDraftDockOpen && hasDraftAvailable ? (
+                      <span className="absolute z-0 right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[#7b61ff]" />
+                    ) : null}
+                  </button>
 
-                      {messagesLoading && (
-                        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500">
-                          Loading conversation...
-                        </div>
-                      )}
-
-                      {!messagesLoading && (
-                        <div className="space-y-8">
-                          {messages.map((message) => {
-                            const isUser = message.role === "user";
-                            const hasFinishedCases =
-                              !message.streaming &&
-                              (message.caseDigests?.length || 0) > 0;
-
-                            if (isUser) {
-                              return (
-                                <div key={message.id} className="flex justify-end">
-                                  <div className="max-w-[88%] rounded-[14px] bg-[#114C8D] px-4 py-3 text-white shadow-sm sm:max-w-[75%]">
-                                    <div className="mb-2 text-[11px] font-semibold uppercase   text-blue-100">
-                                      You
-                                    </div>
-                                    <div className="whitespace-pre-wrap text-sm leading-7 sm:text-[15px]">
-                                      {message.content}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            }
-
-                            return (
-                              <div
-                                key={message.id}
-                                ref={
-                                  message.id === activeAssistantId
-                                    ? activeAssistantRef
-                                    : undefined
-                                }
-                                className="w-full"
-                              >
-                                <div className="mb-2 text-[11px] font-semibold uppercase   text-slate-500">
-                                  Assistant
-                                </div>
-
-                                <div className="bg-transparent py-4">
-                                  <div className="whitespace-pre-wrap text-[15px] leading-8 text-slate-700">
-                                    {message.content && (
-                                      <>{message.content}</>
-                                    )}
-
-                                    {!message.content && message.streaming && (
-                                      <span
-                                        key={message.id + "-loading"}
-                                        className="inline-block text-slate-500 transition-opacity duration-300"
-                                      >
-                                        {activeLoadingThought}
-                                      </span>
-                                    )}
-
-                                    {message.streaming && (
-                                      <span className="ml-1 inline-block h-5 w-2 animate-pulse rounded-sm bg-[#114C8D] align-middle" />
-                                    )}
-                                  </div>
-
-                                  {hasFinishedCases ? (
-                                    <div className="mt-6">
-                                      <Panel title="Related cases">
-                                        <div className="space-y-3">
-                                          {message.caseDigests!.map((item, idx) => (
-                                            <CaseDigestCard
-                                              key={`${item.caseId}_${item.citation}_${idx}`}
-                                              item={item}
-                                              index={idx}
-                                              bookmarked={bookmarkIndex.has(
-                                                getCaseKeyFromDigest(item)
-                                              )}
-                                              onOpen={handleCaseOpen}
-                                              onSummarize={handleCaseSummarize}
-                                              onToggleBookmark={handleToggleBookmark}
-                                              onPdfClick={handlePdfClick}
-                                            />
-                                          ))}
-                                        </div>
-                                      </Panel>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                      </div>
-                    </div>
+                  <div
+                    className={`min-h-0 transition-all duration-300 ease-out ${
+                      isDraftDockOpen
+                        ? "w-full lg:w-[35%] border-r border-slate-200"
+                        : "w-full"
+                    }`}
+                  >
+                    <WorkspacePane
+                      compactMode={isDraftDockOpen}
+                      messages={messages}
+                      messagesLoading={messagesLoading}
+                      hasUserMessages={hasUserMessages}
+                      userName={user.name || user.email}
+                      greetingTitle={greetingTitle}
+                      suggestions={modeSuggestions}
+                      isDraftingMode
+                      activeAssistantId={activeAssistantId}
+                      activeAssistantRef={activeAssistantRef}
+                      activeLoadingThought={activeLoadingThought}
+                      isCaseBookmarked={(item) =>
+                        bookmarkIndex.has(getCaseKeyFromDigest(item))
+                      }
+                      onCaseOpen={handleCaseOpen}
+                      onCaseSummarize={handleCaseSummarize}
+                      onToggleBookmark={handleToggleBookmark}
+                      onPdfClick={handlePdfClick}
+                      onSuggestionClick={handleSuggestionClick}
+                      onQuickReply={handleQuickReply}
+                      textareaRef={textareaRef}
+                      input={draftingInput}
+                      placeholder={composerPlaceholder}
+                      maxInputLength={MAX_INPUT_LENGTH}
+                      remainingChars={remainingChars}
+                      canSend={canSend && !draftingSpeech.isRecording && !draftingSpeech.isTranscribing}
+                      loading={loading}
+                      onInputChange={setDraftingInput}
+                      onSubmit={onSubmit}
+                      onComposerKeyDown={onComposerKeyDown}
+                      onStop={stopStreaming}
+                      draftAttachments={currentDraftAttachments}
+                      uploadingDraftAttachment={uploadingDraftAttachment}
+                      onDraftFilePick={handleDraftFileUpload}
+                      onRemoveDraftAttachment={handleRemoveDraftAttachment}
+                      speechSupported={draftingSpeech.isSupported}
+                      speechRecording={draftingSpeech.isRecording}
+                      speechTranscribing={draftingSpeech.isTranscribing}
+                      speechInterimText={draftingSpeech.interimTranscript}
+                      speechError={draftingSpeech.error}
+                      onToggleSpeech={draftingSpeech.toggle}
+                    />
                   </div>
 
-                  <div className="bg-transparent px-4 py-4 backdrop-blur-xl">
-                    <div className="mx-auto w-full max-w-[768px]">
-                      <form
-                        onSubmit={onSubmit}
-                        className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm"
-                      >
-                        <div className="flex items-end gap-3">
-                          <textarea
-                            ref={textareaRef}
-                            className="max-h-[220px] min-h-[52px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-sm leading-6 text-slate-800 outline-none placeholder:text-slate-400"
-                            placeholder="Ask about a case, doctrine, holding, citation, or comparison..."
-                            value={input}
-                            rows={1}
-                            maxLength={MAX_INPUT_LENGTH}
-                            onChange={(e) =>
-                              setInput(
-                                e.target.value.slice(0, MAX_INPUT_LENGTH)
-                              )
-                            }
-                            onKeyDown={onComposerKeyDown}
-                          />
+                  <div
+                    className={`min-h-0 overflow-hidden border-l border-[#e4ddff] bg-[#f6f4fb] transition-all duration-300 ease-out ${
+                      isDraftDockOpen
+                        ? "w-0 opacity-0 lg:w-[65%] lg:opacity-100 z-10 relative"
+                        : "w-0 opacity-0"
+                    }`}
+                  >
+                    {shouldRenderDraftDock ? (
+                      <DraftingDock
+                        key={currentDraftDocumentId || activeConversationId || "drafting-live"}
+                        conversationTitle={dockConversationTitle}
+                        draftText={currentDraftText}
+                        draftDocumentId={currentDraftDocumentId}
+                        draftingAnswerType={draftingAnswerType}
+                        draftingObjective={draftingObjective}
+                        draftingSources={draftingSources}
+                        draftingMissingFields={draftingMissingFields}
+                        draftingExtractedFacts={draftingExtractedFacts}
+                        onClose={() => setIsDraftDockOpen(false)}
+                        onDraftChange={(html) => {
+                          if (!activeConversationId) return;
 
-                          {loading ? (
-                            <button
-                              type="button"
-                              onClick={stopStreaming}
-                              className="inline-flex h-[48px] cursor-pointer w-[48px] items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 transition hover:bg-rose-100"
-                              aria-label="Stop generating"
-                            >
-                              <svg
-                                viewBox="0 0 24 24"
-                                className="h-5 w-5"
-                                fill="currentColor"
-                              >
-                                <rect x="6" y="6" width="12" height="12" rx="2" />
-                              </svg>
-                            </button>
-                          ) : (
-                            <button
-                              type="submit"
-                              disabled={!canSend}
-                              className="inline-flex h-[48px] cursor-pointer w-[48px] items-center justify-center rounded-2xl bg-[#114C8D] text-white transition hover:bg-[#0B3A6E] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-                              aria-label="Send message"
-                            >
-                              <svg
-                                viewBox="0 0 24 24"
-                                className="h-5 w-5"
-                                fill="currentColor"
-                              >
-                                <path d="M3.4 20.4 21.85 12 3.4 3.6v6.55l13.2 1.85-13.2 1.85v6.55Z" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
+                          setDraftContentsByConversation((prev) => ({
+                            ...prev,
+                            [activeConversationId]: html,
+                          }));
 
-                        <div className="mt-2 flex items-center justify-between px-3 pb-1 text-xs">
-                          <span className="text-slate-500">
-                            Enter to send · Shift + Enter for newline
-                          </span>
-
-                          <div className="flex items-center gap-3">
-                            <span
-                              className={
-                                remainingChars <= 100
-                                  ? "font-medium text-amber-600"
-                                  : "text-slate-500"
-                              }
-                            >
-                              {input.length}/{MAX_INPUT_LENGTH}
-                            </span>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
+                          scheduleDraftPersist(activeConversationId, html);
+                        }}
+                        branding={brandingForDock}
+                      />
+                    ) : null}
                   </div>
-                </>
+                </div>
               )}
             </div>
           </main>
         </div>
       </div>
 
-     <CaseModal
-      open={Boolean(selectedCase)}
-      caseItem={selectedCase}
-      initialTab={caseModalTab}
-      onClose={() => {
-        setSelectedCase(null);
-        setCaseModalTab("case");
-      }}
-    />
+      <CaseModal
+        open={Boolean(selectedCase)}
+        caseItem={selectedCase}
+        initialTab={caseModalTab}
+        onClose={() => {
+          setSelectedCase(null);
+          setCaseModalTab("case");
+        }}
+      />
     </>
   );
 }

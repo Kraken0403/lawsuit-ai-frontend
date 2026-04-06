@@ -1,3 +1,5 @@
+export type ChatMode = "judgment" | "drafting_studio" | "argument";
+
 export type SourceItem = {
   title: string;
   citation: string;
@@ -48,6 +50,7 @@ export type StreamEvent =
       answerType?: string;
       confidence?: number;
       conversationId?: string | null;
+      draftDocumentId?: string | null;
     }
   | {
       type: "error";
@@ -58,7 +61,14 @@ export type StreamEvent =
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
 
 export async function streamChat(
-  payload: { query: string; conversationId?: string | null },
+  payload: {
+    query: string;
+    conversationId?: string | null;
+    chatMode?: ChatMode;
+    saveDraftDocument?: boolean;
+    documentTitle?: string;
+    attachmentIds?: string[];
+  },
   onEvent: (event: StreamEvent) => void,
   options?: { signal?: AbortSignal }
 ) {

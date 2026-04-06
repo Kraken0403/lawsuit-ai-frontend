@@ -446,3 +446,65 @@ body {
 .case-html .citations {
   display: none !important;
 }
+
+
+.drafting-editor-instance {
+  visibility: visible !important;
+}
+
+.drafting-editor-instance .tox-statusbar {
+  border-top: 1px solid #ece8ff;
+}
+
+.tox-tinymce {
+  border: 0px!important;
+}
+
+.tox .tox-toolbar, .tox .tox-toolbar__overflow, .tox .tox-toolbar__primary{
+  /* background-color: rgba(239, 246, 255, 1)!important; */
+  border-radius: 0px;
+
+}
+
+.tox:not(.tox-tinymce-inline) .tox-editor-header {
+  box-shadow: none!important;
+  border-top: 1px solid rgba(112, 112, 112, 0.2)!important;
+  border-radius: 0px!important;
+  /* margin-top: 5px!important; */
+}
+
+.tox-editor-header, .tox-toolbar__primary { 
+  /* background-color: rgba(239, 246, 255, 1)!important; */
+  border: 0px!important;
+}
+.drafting-editor-instance .tox .tox-tbtn {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  padding: 5px !important;
+}
+
+.drafting-editor-instance .tox .tox-tbtn svg {
+  width: 14px !important;
+  height: 14px !important;
+  font-size: 10px!important;
+}
+
+.tox .tox-tbtn {
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.1)!important;
+  display: flex!important;
+  padding: 0!important;
+}
+
+.drafting-editor-instance .tox .tox-toolbar__group {
+  gap: 5px !important;
+  padding: 0 4px !important;
+}
+
+.drafting-editor-instance .tox .tox-toolbar,
+.drafting-editor-instance .tox .tox-toolbar__primary {
+  padding: 2px 4px !important;
+}
+
+
