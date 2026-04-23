@@ -115,220 +115,6 @@ function getDraftContentFromDocument(document: any) {
   return "";
 }
 
-function normalizeDraftTitleText(value: unknown) {
-  return String(value ?? "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function stripSubjectPrefixFromTitle(value: unknown) {
-  return normalizeDraftTitleText(value)
-    .replace(/^subject\s*[:\-]\s*/i, "")
-    .trim();
-}
-
-function countBracketPlaceholdersInTitle(value: string) {
-  return (String(value || "").match(/\[[^\]]+\]/g) || []).length;
-}
-
-function looksLikeContactOrAddressTitleLine(value: string) {
-  const normalized = normalizeDraftTitleText(value);
-  const v = normalized.toLowerCase();
-  if (!v) return true;
-
-  if (/@/.test(v)) return true;
-  if (/^\+?[\d\s().-]{7,}$/.test(v)) return true;
-  if (/\b\d{6}\b/.test(v)) return true;
-  if (/^(date|dated)\s*[:\-]/.test(v)) return true;
-  if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(v)) return true;
-  if (/^to[,]?$/.test(v) || /^dear\b/.test(v)) return true;
-
-  const addressSignals = [
-    "road",
-    "street",
-    "lane",
-    "avenue",
-    "floor",
-    "tower",
-    "building",
-    "block",
-    "sector",
-    "society",
-    "nagar",
-    "colony",
-    "district",
-    "state",
-    "india",
-    "gujarat",
-    "ahmedabad",
-    "mumbai",
-    "delhi",
-    "pincode",
-    "zip code",
-    "pin code",
-  ];
-
-  if (addressSignals.some((signal) => v.includes(signal))) {
-    return true;
-  }
-
-  const words = normalized.split(/\s+/).filter(Boolean);
-  if (words.length <= 2 && /^[a-z .'-]+$/i.test(normalized) && !/\b(vs\.?|v\.)\b/i.test(normalized)) {
-    return true;
-  }
-
-  return false;
-}
-
-function hasStrongDraftTitleSignal(value: string) {
-  const normalized = normalizeDraftTitleText(value);
-  if (!normalized) return false;
-
-  if (/^subject\s*[:\-]/i.test(normalized)) return true;
-
-  return /\b(legal notice|notice|reply|agreement|contract|deed|affidavit|petition|application|undertaking|complaint|plaint|appeal|memorandum|invoice|demand|cease and desist|lease|nda|service agreement|employment|appointment|termination|settlement|breach|non-payment|payment|arbitration|indemnity|power of attorney|terms and conditions)\b/i.test(
-    normalized
-  );
-}
-
-function looksLikeWeakDraftTitle(value: string) {
-  const v = normalizeDraftTitleText(value).toLowerCase();
-  if (!v) return true;
-
-  if (
-    v === "new chat" ||
-    v === "untitled draft" ||
-    v === "markdown" ||
-    v === "text" ||
-    v === "plain text" ||
-    v === "frontend-lawsuit" ||
-    /^```/.test(v)
-  ) {
-    return true;
-  }
-
-  if (countBracketPlaceholdersInTitle(v) >= 1) {
-    return true;
-  }
-
-  if (looksLikeContactOrAddressTitleLine(v)) {
-    return true;
-  }
-
-  const words = v.split(/\s+/).filter(Boolean);
-  if (!hasStrongDraftTitleSignal(v) && (words.length < 3 || words.length > 14)) {
-    return true;
-  }
-
-  return false;
-}
-
-function extractExplicitSubjectTitleFromDraft(value: string) {
-  const plainDraft = stripHtmlToPlainTextApp(String(value || ""));
-  const lines = plainDraft
-    .split(/\n+/)
-    .map((line) => normalizeDraftTitleText(line))
-    .filter(Boolean);
-
-  const subjectLine = lines.find((line) => /^subject\s*[:\-]/i.test(line));
-  if (!subjectLine) return "";
-
-  const cleaned = stripSubjectPrefixFromTitle(subjectLine);
-  return looksLikeWeakDraftTitle(cleaned) ? "" : cleaned;
-}
-
-function extractHtmlHeadingTitle(value: string) {
-  const source = String(value || "");
-  if (!source.trim() || typeof DOMParser === "undefined") return "";
-
-  try {
-    const doc = new DOMParser().parseFromString(source, "text/html");
-    const heading =
-      (doc.querySelector("h1.doc-title") as HTMLElement | null) ||
-      (doc.querySelector("h1") as HTMLElement | null);
-
-    const text = normalizeDraftTitleText(heading?.textContent || "");
-    return looksLikeWeakDraftTitle(text) ? "" : text;
-  } catch {
-    return "";
-  }
-}
-
-
-function stripHtmlToPlainTextApp(value: string) {
-  const source = String(value || "");
-  if (!source.trim()) return "";
-
-  if (/<\/?[a-z][\s\S]*>/i.test(source) && typeof DOMParser !== "undefined") {
-    try {
-      const doc = new DOMParser().parseFromString(source, "text/html");
-      return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
-    } catch {
-      return source.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    }
-  }
-
-  return source
-    .replace(/^```(?:markdown|md|text|txt)?\s*/i, "")
-    .replace(/```$/i, "")
-    .replace(/^markdown\s*/i, "")
-    .replace(/\r/g, "")
-    .trim();
-}
-
-function deriveCleanDraftTitle(params: {
-  rawTitle?: string | null;
-  draftText?: string | null;
-  fallback?: string | null;
-}) {
-  const htmlHeadingTitle = extractHtmlHeadingTitle(String(params.draftText || ""));
-  if (htmlHeadingTitle) {
-    return htmlHeadingTitle.length > 120
-      ? `${htmlHeadingTitle.slice(0, 117).trim()}...`
-      : htmlHeadingTitle;
-  }
-
-  const explicitSubject = extractExplicitSubjectTitleFromDraft(
-    String(params.draftText || "")
-  );
-  if (explicitSubject) {
-    return explicitSubject.length > 120
-      ? `${explicitSubject.slice(0, 117).trim()}...`
-      : explicitSubject;
-  }
-
-  const rawTitle = stripSubjectPrefixFromTitle(params.rawTitle || "");
-  if (rawTitle && !looksLikeWeakDraftTitle(rawTitle)) {
-    return rawTitle.length > 120
-      ? `${rawTitle.slice(0, 117).trim()}...`
-      : rawTitle;
-  }
-
-  const fallback = stripSubjectPrefixFromTitle(params.fallback || "");
-  if (fallback && !looksLikeWeakDraftTitle(fallback)) {
-    return fallback.length > 120
-      ? `${fallback.slice(0, 117).trim()}...`
-      : fallback;
-  }
-
-  const plainDraft = stripHtmlToPlainTextApp(String(params.draftText || ""));
-  const draftLines = plainDraft
-    .split(/\n+/)
-    .map((line) => normalizeDraftTitleText(line))
-    .filter(Boolean);
-
-  for (const line of draftLines.slice(0, 12)) {
-    const cleaned = stripSubjectPrefixFromTitle(line);
-    if (!looksLikeWeakDraftTitle(cleaned) && hasStrongDraftTitleSignal(cleaned)) {
-      return cleaned.length > 120
-        ? `${cleaned.slice(0, 117).trim()}...`
-        : cleaned;
-    }
-  }
-
-  return "Untitled draft";
-}
-
 function DraftToggleIcon() {
   return (
     <svg
@@ -347,69 +133,6 @@ function DraftToggleIcon() {
       <path d="M9 16h6" />
       <path d="M9 8h1" />
     </svg>
-  );
-}
-
-function CreditsLockedOverlay({
-  buyCreditsUrl,
-  onLogout,
-}: {
-  buyCreditsUrl: string;
-  onLogout: () => Promise<void>;
-}) {
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-[520px] rounded-[28px] border border-slate-200 bg-white p-7 shadow-[0_30px_120px_rgba(15,23,42,0.25)]">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#114C8D] text-white">
-          <svg
-            viewBox="0 0 24 24"
-            className="h-7 w-7"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.9"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 1v22" />
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14.5a3.5 3.5 0 0 1 0 7H6" />
-          </svg>
-        </div>
-
-        <div className="text-center">
-          <h2 className="text-[24px] font-semibold text-slate-900">
-            You are out of credits
-          </h2>
-
-          <p className="mt-3 text-[15px] leading-7 text-slate-600">
-            You need to buy more credits from LawSuit Case Finder to continue
-            using Judgment Mode, Drafting Studio, and the rest of the AI tools. Pls drop a mail on info@levons.in to renew your credits
-          </p>
-        </div>
-
-        <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <button
-            type="button"
-            onClick={() => {
-              if (!buyCreditsUrl || buyCreditsUrl === "#") return;
-              window.location.href = buyCreditsUrl;
-            }}
-            className="cursor-pointer inline-flex items-center justify-center rounded-2xl bg-[#114C8D] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#0B3A6E]"
-          >
-            Buy credits
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              void onLogout();
-            }}
-            className="cursor-pointer inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -446,16 +169,6 @@ export default function App() {
   const [draftingInput, setDraftingInput] = useState("");
 
   const activeInput = isDraftingMode ? draftingInput : chatInput;
-
-  const creditsRemaining = typeof user?.creditsRemaining === "number" ? user.creditsRemaining : 0;
-
-  const creditsLocked = Boolean(user) && creditsRemaining <= 0;
-
-  const buyCreditsUrl =
-    import.meta.env.VITE_CF_BUY_CREDITS_URL ||
-    import.meta.env.VITE_CF_LOGIN_URL ||
-    import.meta.env.VITE_CF_BASE_URL ||
-    "#";
 
   const setActiveInput = (value: string) => {
     if (isDraftingMode) {
@@ -792,19 +505,6 @@ const canSend = useMemo(
       ? (draftingRouter.extractedFacts as Record<string, unknown>)
       : {};
 
-  const draftingPlaceholderValues = useMemo(() => {
-    return Object.fromEntries(
-      Object.entries(draftingExtractedFacts)
-        .filter(([, value]) =>
-          typeof value === "string" ||
-          typeof value === "number" ||
-          typeof value === "boolean"
-        )
-        .map(([key, value]) => [key, String(value ?? "")])
-        .filter(([key, value]) => key && value)
-    ) as Record<string, string>;
-  }, [draftingExtractedFacts]);
-
   const draftingObjective =
     typeof draftingRouter?.draftingObjective === "string"
       ? draftingRouter.draftingObjective
@@ -986,7 +686,7 @@ const finalizeAssistantMessage = (fallbackText?: string) => {
         ...last,
         content:
           last.content ||
-          "I’m preparing the draft in the editor now. I’ll keep the chat concise while the full document is being structured on the right. Once it is ready, please review the facts, placeholders, and wording carefully before using it.",
+          "I’m drafting the document in the editor now. I’ll keep the chat brief and show the full draft in the workspace.",
         streaming: true,
       }));
     }
@@ -1236,12 +936,7 @@ const finalizeAssistantMessage = (fallbackText?: string) => {
       }
 
       const nextContent = getDraftContentFromDocument(document);
-      const nextTitle = deriveCleanDraftTitle({
-        rawTitle: String(document.title || "").trim(),
-        draftText: nextContent,
-        fallback:
-          conversations.find((item) => item.id === conversationId)?.title || "",
-      });
+      const nextTitle = String(document.title || "").trim();
 
       setDraftDocumentIdsByConversation((prev) => ({
         ...prev,
@@ -1276,15 +971,11 @@ const finalizeAssistantMessage = (fallbackText?: string) => {
       const documentId = draftDocumentIdsRef.current[conversationId];
       if (!documentId) return;
 
-      const title = deriveCleanDraftTitle({
-        rawTitle:
-          explicitTitle ??
-          draftTitlesRef.current[conversationId] ??
-          conversations.find((item) => item.id === conversationId)?.title ??
-          "Untitled draft",
-        draftText: html,
-        fallback: conversations.find((item) => item.id === conversationId)?.title ?? "",
-      });
+      const title =
+        explicitTitle ??
+        draftTitlesRef.current[conversationId] ??
+        conversations.find((item) => item.id === conversationId)?.title ??
+        "Untitled draft";
 
       try {
         const response = await draftDocumentService.updateDocument(documentId, {
@@ -1812,12 +1503,7 @@ const stopStreaming = () => {
         conversation.id === conversationId && conversation.title === "New chat"
           ? {
               ...conversation,
-              title: isDraftingMode
-                ? deriveCleanDraftTitle({
-                    rawTitle: deriveConversationTitle(query),
-                    fallback: query,
-                  })
-                : deriveConversationTitle(query),
+              title: deriveConversationTitle(query),
             }
           : conversation
       )
@@ -1826,10 +1512,7 @@ const stopStreaming = () => {
     if (workspaceView === "drafting_document" && conversationId) {
       setDraftTitlesByConversation((prev) => ({
         ...prev,
-        [conversationId!]: deriveCleanDraftTitle({
-          rawTitle: deriveConversationTitle(query),
-          fallback: query,
-        }),
+        [conversationId!]: deriveConversationTitle(query),
       }));
     }
 
@@ -1881,18 +1564,6 @@ const stopStreaming = () => {
             ? undefined
             : deriveConversationTitle(query),
           attachmentIds: currentAttachmentIds,
-          draftDocumentId:
-            isDraftingMode && currentDraftDocumentId
-              ? currentDraftDocumentId
-              : undefined,
-          currentDraftText:
-            isDraftingMode && currentDraftText.trim()
-              ? currentDraftText
-              : undefined,
-          currentDraftTitle:
-            isDraftingMode && currentDraftTitle.trim()
-              ? currentDraftTitle
-              : undefined,
           selectedCourtIds:
             !isDraftingMode && selectedCourtIds.length > 0
               ? selectedCourtIds
@@ -1922,20 +1593,15 @@ const stopStreaming = () => {
             const preview = String((event as any).preview || "").trim();
 
             if (preview && isDraftingMode && streamedConversationId) {
-              const nextTitle = deriveCleanDraftTitle({
-                rawTitle: preview,
-                fallback: query,
-              });
-
               setDraftTitlesByConversation((prev) => ({
                 ...prev,
-                [streamedConversationId]: nextTitle,
+                [streamedConversationId]: preview,
               }));
 
               setConversations((prev) =>
                 prev.map((item) =>
                   item.id === streamedConversationId
-                    ? { ...item, title: nextTitle }
+                    ? { ...item, title: preview }
                     : item
                 )
               );
@@ -1989,27 +1655,10 @@ const stopStreaming = () => {
               const fullDraft = draftStreamBufferRef.current.trim();
 
               if (fullDraft && streamedConversationId) {
-                const nextTitle = deriveCleanDraftTitle({
-                  rawTitle: draftTitlesRef.current[streamedConversationId] || query,
-                  draftText: fullDraft,
-                  fallback: query,
-                });
-
                 setDraftContentsByConversation((prev) => ({
                   ...prev,
                   [streamedConversationId]: fullDraft,
                 }));
-                setDraftTitlesByConversation((prev) => ({
-                  ...prev,
-                  [streamedConversationId]: nextTitle,
-                }));
-                setConversations((prev) =>
-                  prev.map((item) =>
-                    item.id === streamedConversationId
-                      ? { ...item, title: nextTitle }
-                      : item
-                  )
-                );
               }
 
               if (event.draftDocumentId && streamedConversationId) {
@@ -2324,34 +1973,16 @@ const stopStreaming = () => {
                         draftingSources={draftingSources}
                         draftingMissingFields={draftingMissingFields}
                         draftingExtractedFacts={draftingExtractedFacts}
-                        draftPlaceholderValues={draftingPlaceholderValues}
                         onClose={() => setIsDraftDockOpen(false)}
                         onDraftChange={(html) => {
                           if (!activeConversationId) return;
-
-                          const nextTitle = deriveCleanDraftTitle({
-                            rawTitle: currentDraftTitle || dockConversationTitle,
-                            draftText: html,
-                            fallback: draftingObjective || dockConversationTitle,
-                          });
 
                           setDraftContentsByConversation((prev) => ({
                             ...prev,
                             [activeConversationId]: html,
                           }));
-                          setDraftTitlesByConversation((prev) => ({
-                            ...prev,
-                            [activeConversationId]: nextTitle,
-                          }));
-                          setConversations((prev) =>
-                            prev.map((item) =>
-                              item.id === activeConversationId
-                                ? { ...item, title: nextTitle }
-                                : item
-                            )
-                          );
 
-                          scheduleDraftPersist(activeConversationId, html, nextTitle);
+                          scheduleDraftPersist(activeConversationId, html);
                         }}
                         branding={brandingForDock}
                       />
@@ -2373,12 +2004,6 @@ const stopStreaming = () => {
           setCaseModalTab("case");
         }}
       />
-      {creditsLocked ? (
-        <CreditsLockedOverlay
-          buyCreditsUrl={buyCreditsUrl}
-          onLogout={logout}
-        />
-      ) : null}
     </>
   );
 }

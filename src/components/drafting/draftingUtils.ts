@@ -10,11 +10,35 @@ export function looksLikeHtml(value: string) {
   return /<\/?[a-z][\s\S]*>/i.test(value);
 }
 
+export function stripOuterMarkdownFence(value: string) {
+  let text = String(value || "")
+    .replace(/\r\n/g, "\n")
+    .trim();
+
+  if (!text) return "";
+
+  const fencedBlockMatch = text.match(
+    /^```(?:markdown|md|mdown|text|txt)?\s*\n?([\s\S]*?)\n?```$/i
+  );
+
+  if (fencedBlockMatch?.[1]) {
+    text = fencedBlockMatch[1].trim();
+  } else {
+    text = text
+      .replace(/^```(?:markdown|md|mdown|text|txt)?\s*\n?/i, "")
+      .replace(/\n?```$/, "")
+      .trim();
+  }
+
+  return text.replace(/^markdown\s*\n+/i, "").trim();
+}
+
 export function markdownishTextToHtml(text: string) {
   if (!text.trim()) return "<p></p>";
   if (looksLikeHtml(text)) return text;
 
-  const lines = text.replace(/\r/g, "").split("\n");
+  const normalized = stripOuterMarkdownFence(text);
+  const lines = normalized.replace(/\r/g, "").split("\n");
   const html: string[] = [];
   let inUl = false;
   let inOl = false;
@@ -33,7 +57,7 @@ export function markdownishTextToHtml(text: string) {
   for (const rawLine of lines) {
     const line = rawLine.trim();
 
-    if (!line) {
+    if (!line || /^```/.test(line)) {
       closeLists();
       html.push("<p><br /></p>");
       continue;
@@ -84,6 +108,7 @@ export function markdownishTextToHtml(text: string) {
   closeLists();
   return html.join("");
 }
+
 
 export function extractDocBody(fullHtml: string) {
   if (!fullHtml?.trim()) return "";

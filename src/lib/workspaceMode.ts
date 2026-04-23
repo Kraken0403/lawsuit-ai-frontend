@@ -52,26 +52,91 @@ export function getDraftingAnswerTypeFromTrace(
   return null;
 }
 
-export function makeDraftingChatSummary(trace?: StreamTrace | null, fallbackText = "") {
-  const router = getDraftingRouterFromTrace(trace);
-  const family =
-    typeof router?.family === "string"
-      ? router.family.replace(/_/g, " ")
-      : "draft";
-  const objective =
-    typeof router?.draftingObjective === "string" ? router.draftingObjective : "";
-  const tone =
-    typeof router?.preferredTone === "string" && router.preferredTone !== "neutral"
-      ? `${router.preferredTone} `
-      : "";
+function compactLabel(value: string) {
+  return value.replace(/_/g, " ").replace(/\s+/g, " ").trim();
+}
 
-  if (objective) {
-    return `I generated a ${tone}${family} draft in the editor for: ${objective}. Review it in the docked workspace and tell me what to revise.`;
+function getObjectValue(obj: unknown, key: string) {
+  if (!obj || typeof obj !== "object") return "";
+  const value = (obj as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : "";
+}
+
+function getStringArray(obj: unknown, key: string): string[] {
+  if (!obj || typeof obj !== "object") return [];
+  const value = (obj as Record<string, unknown>)[key];
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean);
+}
+
+function countUnresolvedBracketPlaceholders(text: string) {
+  return (String(text || "").match(/\[[^\]]+\]/g) || []).length;
+}
+
+export function makeDraftingChatSummary(
+  trace?: { router?: unknown } | null,
+  draftText = ""
+) {
+  const router = trace?.router;
+
+  const family = getObjectValue(router, "family");
+  const subtype = getObjectValue(router, "subtype");
+  const draftingObjective = getObjectValue(router, "draftingObjective");
+  const strategy = getObjectValue(router, "strategy");
+  const missingFields = getStringArray(router, "missingFields");
+  const isFollowUp =
+    !!router &&
+    typeof router === "object" &&
+    (router as Record<string, unknown>).isFollowUp === true;
+
+  const unresolvedPlaceholderCount = countUnresolvedBracketPlaceholders(draftText);
+
+  const readableFamily = family ? compactLabel(family) : "draft";
+  const readableSubtype = subtype ? compactLabel(subtype) : "";
+  const readableStrategy = strategy ? compactLabel(strategy) : "";
+
+  const firstLine = readableSubtype
+    ? `I’ve ${
+        isFollowUp ? "updated" : "prepared"
+      } the ${readableFamily} (${readableSubtype}) in the editor.`
+    : `I’ve ${
+        isFollowUp ? "updated" : "prepared"
+      } the ${readableFamily} in the editor.`;
+
+  const objectiveLine = draftingObjective
+    ? `It is structured around this objective: ${draftingObjective}.`
+    : readableStrategy
+    ? `It has been generated using the ${readableStrategy} drafting flow.`
+    : "";
+
+  let placeholderLine = "";
+  if (missingFields.length > 0 || unresolvedPlaceholderCount > 0) {
+    placeholderLine =
+      unresolvedPlaceholderCount > 0
+        ? `A few placeholders or variable fields may still need to be reviewed and finalized before use.`
+        : `I’ve also identified some details that may still need confirmation.`;
   }
 
-  if (fallbackText.trim()) {
-    return `Your draft is ready in the editor. Review it on the right and tell me what to change next.`;
-  }
+  const proofreadingLine =
+    "Please review the language, facts, names, dates, amounts, jurisdiction details, and clause intent carefully before relying on it.";
 
-  return `Your ${tone}${family} draft is ready in the editor.`;
+  const legalWarningLine =
+    "Treat this as a working draft and proofread it properly, and where needed have it vetted by a qualified legal professional before using it for any legal purpose.";
+
+  const closingLine = isFollowUp
+    ? "Check the updated version on the right and tell me what you want revised next."
+    : "Review it on the right and tell me what you want changed, expanded, tightened, or customized next.";
+
+  return [
+    firstLine,
+    objectiveLine,
+    placeholderLine,
+    proofreadingLine,
+    legalWarningLine,
+    closingLine,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }

@@ -1,5 +1,6 @@
 import type { KeyboardEvent, RefObject } from "react";
 import type { AppMessage } from "../../lib/appHelpers";
+import type { AllowedCourtOption } from "../../lib/allowedCourts";
 import type { CaseDigest } from "../../streamChat";
 import WorkspaceMessages from "./WorkspaceMessages";
 import WorkspaceComposer from "./WorkspaceComposer";
@@ -48,6 +49,9 @@ type WorkspacePaneProps = {
   speechInterimText?: string;
   speechError?: string | null;
   onToggleSpeech?: () => void;
+  availableCourts?: AllowedCourtOption[];
+  selectedCourtIds?: number[];
+  onSelectedCourtIdsChange?: (ids: number[]) => void;
 };
 
 export default function WorkspacePane({
@@ -103,6 +107,9 @@ export default function WorkspacePane({
           speechInterimText={props.speechInterimText}
           speechError={props.speechError}
           onToggleSpeech={props.onToggleSpeech}
+          availableCourts={props.availableCourts}
+          selectedCourtIds={props.selectedCourtIds}
+          onSelectedCourtIdsChange={props.onSelectedCourtIdsChange}
         />
       </div>
     </section>

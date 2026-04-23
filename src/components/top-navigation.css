@@ -1,0 +1,411 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&display=swap");
+
+:root {
+  --top-nav-height: 78px;
+}
+
+.header,
+.mob-header,
+.us-dropdown-menu,
+.mob-overlay,
+.mob-menu {
+  font-family: "Inter Tight", sans-serif;
+}
+
+.header {
+  height: var(--top-nav-height);
+  min-height: var(--top-nav-height);
+  display: flex;
+  align-items: center;
+  background-color: white;
+  justify-content: space-between;
+  box-sizing: border-box;
+  padding: 10px 15px;
+  border-bottom: 1px solid #64728d33;
+  flex: 0 0 var(--top-nav-height);
+  position: relative;
+  z-index: 80;
+  overflow: visible;
+}
+
+.header .logo {
+  width: 10%;
+  min-width: 120px;
+}
+
+.header .logo img {
+  width: 100%;
+  display: block;
+}
+
+.header .nav-menu {
+  width: 80%;
+}
+
+.header .user {
+  width: 10%;
+}
+
+.flex-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  overflow: hidden;
+  flex-wrap: wrap;
+  padding: 10px 0;
+}
+
+.flex-container .text {
+  background-color: white;
+  display: flex;
+  align-items: center;
+  border-radius: 30px;
+  border: 1px solid #dfdfdf;
+  padding: 0;
+  justify-content: start;
+  box-shadow: none;
+  color: #64728d;
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.flex-container .text:hover {
+  border-color: #004a9a;
+}
+
+.flex-container .text a {
+  display: flex;
+  align-items: center;
+  padding: 7px 15px;
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+}
+
+.nav-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.flex-container .text-active {
+  background-color: #004a9a;
+  font-size: 16px;
+  color: #fff !important;
+}
+
+.user {
+  position: relative;
+  text-align: right;
+  display: flex;
+  justify-content: end;
+  cursor: pointer;
+  user-select: none;
+  z-index: 81;
+}
+
+/* Ensure the header user area doesn't force a percentage width when
+   we place it inside a custom flex wrapper. Keep the avatar a fixed
+   50x50 circle and prevent it from stretching. */
+.header .user {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.user-image {
+  width: 50px;
+  height: 50px;
+  min-width: 50px;
+  min-height: 50px;
+  flex: 0 0 50px;
+  border-radius: 50%;
+  background-color: #004a9a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  overflow: hidden;
+}
+
+.credits {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 6px;
+  color: #0f172a;
+}
+
+.credits .nav-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.credit-pill {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+/* pulse animation when credits change */
+.credit-pill.pulse {
+  animation: credit-pulse 0.9s cubic-bezier(.2,.9,.2,1);
+}
+
+@keyframes credit-pulse {
+  0% { transform: scale(1); background: #f1f5f9; }
+  30% { transform: scale(1.15); background: #fff7ed; }
+  70% { transform: scale(1.03); background: #fffaf0; }
+  100% { transform: scale(1); background: #f1f5f9; }
+}
+
+/* coin/token icon styling */
+.coin-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #d4af37; /* gold tone */
+}
+
+.coin-icon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+/* sidebar-specific credit pill tweaks */
+.sidebar-credit-pill {
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: 999px;
+}
+
+.react-coin-icon {
+  width: 18px;
+  height: 18px;
+  color: #d4af37;
+}
+
+/* slightly stronger pulse shadow for sidebar */
+.sidebar-credit-pill.pulse {
+  animation: credit-pulse 0.9s cubic-bezier(.2,.9,.2,1);
+  box-shadow: 0 6px 18px rgba(20, 20, 20, 0.08);
+}
+
+.mob-credits {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+}
+
+.mob-credits .credit-pill {
+  padding: 6px 8px;
+}
+
+.user-image {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #004a9a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.user-initials {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.sidebar-top img {
+  display: block;
+  height: 32px;
+}
+
+.sidebar-top .credit-pill {
+  margin-left: 8px;
+}
+
+/* credit logo icon */
+.credit-logo-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.us-dropdown-menu {
+  display: none;
+  position: absolute;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.14);
+  right: 0;
+  top: calc(100% + 8px);
+  width: 250px;
+  z-index: 9999;
+}
+
+.us-dropdown-menu.is-open {
+  display: block;
+}
+
+.us-dropdown-menu a,
+.user-menu-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  text-decoration: none;
+  color: #181a1e;
+  text-align: left;
+  width: 100%;
+  font-size: 15px;
+  line-height: 1.2;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.menu-item-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.us-dropdown-menu a:hover,
+.user-menu-action:hover {
+  background: #0568d110;
+}
+
+.mobile {
+  display: none;
+}
+
+.mob-header {
+  width: 100%;
+  height: var(--top-nav-height);
+  min-height: var(--top-nav-height);
+  background-color: white;
+  display: none;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid #64728d33;
+  flex: 0 0 var(--top-nav-height);
+  position: relative;
+  z-index: 80;
+  overflow: visible;
+}
+
+.mob-logo {
+  max-width: 120px;
+}
+
+.mob-logo img {
+  width: 100%;
+  display: block;
+}
+
+.ham-menu,
+.mob-close,
+.mob-logout-btn {
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.menu-svg {
+  width: 26px;
+  height: 26px;
+  color: #111827;
+}
+
+.mob-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: #fff;
+  z-index: 500;
+  padding: 25px;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+
+.mob-overlay.is-open {
+  transform: translateX(0);
+}
+
+.mob-menu {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  justify-content: center;
+  position: relative;
+}
+
+.mob-menu-item a,
+.mob-logout-btn {
+  display: block;
+  font-size: 28px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.mob-active a {
+  color: #004a9a !important;
+}
+
+.mob-close {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+}
+
+.mob-menu-divider {
+  width: 100%;
+  max-width: 280px;
+  border-top: 1px solid #e5e7eb;
+  margin: 10px 0;
+}
+
+.mob-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media only screen and (max-width: 1200px) {
+  .desktop {
+    display: none;
+  }
+
+  .mobile,
+  .mob-header {
+    display: flex;
+  }
+  .mob-credits { display: inline-flex; }
+}
+
+@media only screen and (min-width: 1201px) and (max-width: 1376px) {
+  .flex-container .text {
+    font-size: 14px;
+  }
+}

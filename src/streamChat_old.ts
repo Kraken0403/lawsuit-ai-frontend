@@ -74,9 +74,6 @@ export async function streamChat(
     saveDraftDocument?: boolean;
     documentTitle?: string;
     attachmentIds?: string[];
-    draftDocumentId?: string | null;
-    currentDraftText?: string;
-    currentDraftTitle?: string;
     selectedCourtIds?: number[];
   },
   onEvent: (event: StreamEvent) => void,

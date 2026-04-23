@@ -88,12 +88,25 @@ export const draftDocumentService = {
   },
 
   async updateDocument(id: string, payload: Record<string, unknown>) {
-    console.log(payload)
     return await apiRequest<DraftDocumentSingleResponse>(
       `/api/drafting/documents/${id}`,
       {
         method: "PATCH",
         body: payload,
+      }
+    );
+  },
+
+  async fillFields(
+    id: string,
+    values: Record<string, string>,
+    createVersion = true
+  ) {
+    return await apiRequest<DraftDocumentSingleResponse>(
+      `/api/drafting/documents/${id}/fill-fields`,
+      {
+        method: "POST",
+        body: { values, createVersion },
       }
     );
   },

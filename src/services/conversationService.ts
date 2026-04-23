@@ -54,6 +54,11 @@ type MessagesResponse = {
   messages: ConversationMessage[];
 };
 
+type DeleteResponse = {
+  ok: boolean;
+  conversationId: string;
+};
+
 export const conversationService = {
   list(chatMode?: ConversationChatMode) {
     const params = new URLSearchParams();
@@ -93,6 +98,12 @@ export const conversationService = {
     return apiRequest<CreateResponse>(`/api/conversations/${conversationId}`, {
       method: "PATCH",
       body: { title },
+    });
+  },
+
+  remove(conversationId: string) {
+    return apiRequest<DeleteResponse>(`/api/conversations/${conversationId}`, {
+      method: "DELETE",
     });
   },
 };

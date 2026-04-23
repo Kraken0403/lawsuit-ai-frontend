@@ -1,5 +1,7 @@
 import { useRef } from "react";
 import type { KeyboardEvent } from "react";
+import type { AllowedCourtOption } from "../../lib/allowedCourts";
+import CourtFilterPopover from "./CourtFilterPopover";
 
 type WorkspaceComposerProps = {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -28,6 +30,9 @@ type WorkspaceComposerProps = {
   speechInterimText?: string;
   speechError?: string | null;
   onToggleSpeech?: () => void;
+  availableCourts?: AllowedCourtOption[];
+  selectedCourtIds?: number[];
+  onSelectedCourtIdsChange?: (ids: number[]) => void;
 };
 
 function PlusIcon() {
@@ -126,7 +131,6 @@ export default function WorkspaceComposer({
   input,
   placeholder,
   maxInputLength,
-  remainingChars,
   canSend,
   loading,
   onChange,
@@ -144,6 +148,9 @@ export default function WorkspaceComposer({
   speechInterimText = "",
   speechError = "",
   onToggleSpeech,
+  availableCourts = [],
+  selectedCourtIds = [],
+  onSelectedCourtIdsChange,
 }: WorkspaceComposerProps) {
   const draftFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -157,6 +164,16 @@ export default function WorkspaceComposer({
   return (
     <div className="bg-transparent px-4 py-4 backdrop-blur-xl">
       <div className="mx-auto w-full max-w-[768px]">
+        {!isDraftingMode && availableCourts.length > 0 ? (
+          <div className="mb-3 px-1">
+            <CourtFilterPopover
+              availableCourts={availableCourts}
+              selectedCourtIds={selectedCourtIds}
+              onChange={(ids) => onSelectedCourtIdsChange?.(ids)}
+            />
+          </div>
+        ) : null}
+
         <form
           onSubmit={onSubmit}
           className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm"
@@ -318,29 +335,12 @@ export default function WorkspaceComposer({
                   viewBox="0 0 24 24"
                   className="h-5 w-5"
                   fill="currentColor"
+                  aria-hidden="true"
                 >
-                  <path d="M3.4 20.4 21.85 12 3.4 3.6v6.55l13.2 1.85-13.2 1.85v6.55Z" />
+                  <path d="M3.4 20.6 21 12 3.4 3.4 3.3 10l11.2 2-11.2 2z" />
                 </svg>
               </button>
             )}
-          </div>
-
-          <div className="mt-2 flex items-center justify-between px-3 pb-1 text-xs">
-            <span className="text-slate-500">
-              Enter to send · Shift + Enter for newline
-            </span>
-
-            <div className="flex items-center gap-3">
-              <span
-                className={
-                  remainingChars <= 100
-                    ? "font-medium text-amber-600"
-                    : "text-slate-500"
-                }
-              >
-                {input.length}/{maxInputLength}
-              </span>
-            </div>
           </div>
         </form>
       </div>

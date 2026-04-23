@@ -1,8 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import { FaCoins } from "react-icons/fa";
+import { useAuth } from "../context/AuthContext";
 import type {
   ConversationChatMode,
   ConversationListItem,
 } from "../services/conversationService";
+import ConfirmDialog from "./ui/ConfirmDialog";
 
 type SidebarView = "chat" | "drafting_document" | "bookmarks" | "settings";
 
@@ -17,6 +20,7 @@ type SidebarProps = {
   userName?: string | null;
   onLogout?: () => void;
   autoCollapse?: boolean;
+  onDeleteConversation?: (conversationId: string) => Promise<void> | void;
 };
 
 function getConversationView(
@@ -47,6 +51,24 @@ function DraftingStudioIcon() {
     >
       <path d="M4 20h4l10-10-4-4L4 16v4Z" />
       <path d="m12 6 4 4" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
     </svg>
   );
 }
@@ -116,37 +138,6 @@ function PlusIcon() {
   );
 }
 
-function UserIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-4 w-4 mr-2"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
-
-function LogoutIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-4 w-4 mr-2"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <path d="M16 17l5-5-5-5" />
-      <path d="M21 12H9" />
-    </svg>
-  );
-}
-
 function SearchIcon() {
   return (
     <svg
@@ -191,11 +182,11 @@ function SidebarNavButton({
         type="button"
         onClick={onClick}
         title={label}
-        className={`w-full p-2 rounded-[6px] transition ${btnBg} cursor-pointer`}
+        className={`w-full rounded-[6px] p-2 transition ${btnBg} cursor-pointer`}
       >
         <div className="flex items-center justify-center">
           <div
-            className={`h-8 w-8 rounded-full bfg flex items-center justify-center font-semibold ${iconClass}`}
+            className={`flex h-8 w-8 items-center justify-center rounded-full font-semibold ${iconClass}`}
           >
             {icon}
           </div>
@@ -256,16 +247,28 @@ export default function Sidebar({
   onChangeView,
   onSelectConversation,
   onNewChat,
-  userName,
-  onLogout,
   autoCollapse = false,
+  onDeleteConversation,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [confirmLogout, setConfirmLogout] = useState(false);
+  const { user } = useAuth();
+  const creditsRemaining = user?.creditsRemaining;
+  const [pulse, setPulse] = useState(false);
+  const prevCreditsRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    const prev = prevCreditsRef.current;
+    if (typeof prev === "number" && typeof creditsRemaining === "number" && prev !== creditsRemaining) {
+      setPulse(true);
+      const t = setTimeout(() => setPulse(false), 900);
+      return () => clearTimeout(t);
+    }
+    prevCreditsRef.current = typeof creditsRemaining === "number" ? creditsRemaining : prev;
+  }, [creditsRemaining]);
   const [searchActive, setSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deletingConversation, setDeletingConversation] = useState(false);
 
   useEffect(() => {
     if (autoCollapse) {
@@ -273,26 +276,9 @@ export default function Sidebar({
     }
   }, [autoCollapse]);
 
-  useEffect(() => {
-    function onDoc(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-
-    document.addEventListener("click", onDoc);
-    return () => document.removeEventListener("click", onDoc);
-  }, []);
-
-  const initials = (userName || "")
-    .split(" ")
-    .map((s) => s[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
   const inverted = collapsed;
   const expandedBlue = false;
+  const appVersion = import.meta.env.VITE_APP_VERSION || "v1.0.0";
 
   const sectionTitle =
     activeView === "drafting_document"
@@ -330,81 +316,43 @@ export default function Sidebar({
     <aside
       className={`hidden min-h-0 border-r ${
         inverted ? "border-white/10" : "border-slate-200"
-      } bg-white text-slate-900 lg:flex lg:h-screen lg:shrink-0 lg:flex-col ${
+      } bg-white text-slate-900 lg:flex lg:h-full lg:shrink-0 lg:flex-col ${
         collapsed ? "lg:w-[72px]" : "lg:w-[240px]"
       }`}
     >
-      <div
-        className={`border-b ${
-          inverted ? "border-white/10" : "border-slate-200"
-        } px-4 py-4`}
-      >
-        <div
-          className={`mb-3 flex items-center ${collapsed ? "justify-center" : ""}`}
-        >
-          <div className="min-w-0 flex items-center gap-3">
-            <img
-              src={`${import.meta.env.BASE_URL}logo.png`}
-              alt="Lawsuit AI"
-              className="h-8 object-contain"
-            />
-          </div>
+      
 
-          <div
-            className={`${
-              collapsed ? "ml-0" : "ml-auto"
-            } flex items-center gap-2 ${collapsed ? "justify-center w-full" : ""}`}
+      <div className={`border-b ${inverted ? "border-white/10" : "border-slate-200"} px-3 py-4`}>
+        <div className={`flex ${collapsed ? "flex-col-reverse items-center gap-2" : "flex-row items-center gap-2"}`}>
+          <button
+            type="button"
+            onClick={() => {
+              const targetView = activeView === "drafting_document" ? "drafting_document" : "chat";
+              onChangeView(targetView);
+              onNewChat(targetView);
+            }}
+            title={activeView === "drafting_document" ? "New draft" : "New chat"}
+            className={`inline-flex items-center justify-center gap-2 cursor-pointer transition hover:opacity-95 ${collapsed ? "h-10 w-10 rounded-md" : "flex-1 rounded-[6px] px-4 py-3"} ${inverted ? "bg-slate-100 text-slate-700" : "bg-[#114C8D] text-white"}`}
           >
-            <button
-              type="button"
-              onClick={() => setCollapsed((v) => !v)}
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className={`inline-flex h-9 w-9 items-center justify-center rounded-md cursor-pointer ${
-                inverted
-                  ? "bg-transparent text-slate-700"
-                  : "bg-slate-100 text-slate-600"
-              }`}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M4 7h16" />
-                <path d="M4 12h16" />
-                <path d="M4 17h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
+            <PlusIcon />
+            {!collapsed && (
+              <span>{activeView === "drafting_document" ? "New draft" : "New chat"}</span>
+            )}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            const targetView =
-              activeView === "drafting_document" ? "drafting_document" : "chat";
-            onChangeView(targetView);
-            onNewChat(targetView);
-          }}
-          className={`inline-flex w-full items-center justify-center cursor-pointer gap-2 ${
-            collapsed ? "p-2 rounded-md" : "rounded-[6px] px-4 py-3"
-          } ${
-            inverted
-              ? "bg-slate-100 text-slate-700"
-              : "bg-[#114C8D] text-white"
-          } transition hover:opacity-95`}
-        >
-          <PlusIcon />
-          {!collapsed && (
-            <span>
-              {activeView === "drafting_document"
-                ? "New drafting chat"
-                : "New chat"}
-            </span>
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => setCollapsed((v) => !v)}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md cursor-pointer ${inverted ? "bg-transparent text-slate-700" : "bg-slate-100 text-slate-600"}`}
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 7h16" />
+              <path d="M4 12h16" />
+              <path d="M4 17h16" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div
@@ -538,7 +486,7 @@ export default function Sidebar({
                 const active =
                   item.id === activeConversationId && itemView === activeView;
 
-                const btnClass = active
+                const cardClass = active
                   ? expandedBlue
                     ? "bg-white/10"
                     : inverted
@@ -551,17 +499,19 @@ export default function Sidebar({
                   : "hover:bg-white";
 
                 return (
-                  <button
+                  <div
                     key={item.id}
-                    type="button"
-                    onClick={() => {
-                      onChangeView(itemView);
-                      onSelectConversation(item.id);
-                    }}
-                    className={`w-full rounded-2xl px-3 py-3 text-left transition ${btnClass}`}
+                    className={`group rounded-2xl px-3 py-3 transition ${cardClass}`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onChangeView(itemView);
+                          onSelectConversation(item.id);
+                        }}
+                        className="min-w-0 flex-1 text-left cursor-pointer"
+                      >
                         <div
                           className={`truncate text-sm font-medium ${
                             expandedBlue
@@ -579,6 +529,7 @@ export default function Sidebar({
                         >
                           {item.title}
                         </div>
+
                         <div
                           className={`mt-1 line-clamp-2 text-xs leading-5 ${
                             expandedBlue
@@ -590,206 +541,115 @@ export default function Sidebar({
                         >
                           {item.preview || "No messages yet"}
                         </div>
-                      </div>
+                      </button>
 
-                      <div
-                        className={`shrink-0 pt-0.5 text-[11px] ${
-                          expandedBlue
-                            ? "text-white/70"
-                            : inverted
-                            ? "text-white/70"
-                            : "text-slate-400"
-                        }`}
-                      >
-                        {formatDate(item.lastMessageAt)}
+                      <div className="flex shrink-0 items-start gap-2">
+                        <div
+                          className={`pt-0.5 text-[11px] ${
+                            expandedBlue
+                              ? "text-white/70"
+                              : inverted
+                              ? "text-white/70"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          {formatDate(item.lastMessageAt)}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPendingDeleteId(item.id);
+                          }}
+                          className="cursor-pointer rounded-lg p-1.5 text-slate-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
+                          title="Delete chat"
+                        >
+                          <TrashIcon />
+                        </button>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })
             )}
           </div>
         </div>
       )}
+      
+      <div className={`border-t ${inverted ? "border-white/10" : "border-slate-200"} px-3 py-3`}>
+        <div className="flex items-center justify-center">
+          {collapsed ? (
+            <button type="button" title={`Credits: ${typeof creditsRemaining === "number" ? creditsRemaining : "-"}`} className="p-1">
+              <FaCoins className="react-coin-icon text-yellow-500" />
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <FaCoins className="react-coin-icon text-yellow-500" />
+              <span className={`credit-pill sidebar-credit-pill ${pulse ? "pulse" : ""}`}>
+                {typeof creditsRemaining === "number" ? creditsRemaining : "-"}
+              </span>
+              <div className="text-xs text-slate-500">Credits Remaining</div>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div
         className={`mt-auto border-t ${
           inverted ? "border-white/10" : "border-slate-200"
-        } px-4 py-4`}
+        } px-3 py-3`}
       >
         {collapsed ? (
-          <div className="flex items-center justify-center relative">
-            <div className="relative" ref={menuRef}>
-              <button
-                type="button"
-                onClick={() => setMenuOpen((v) => !v)}
-                className={`h-9 w-9 rounded-full flex items-center justify-center font-semibold ${
-                  inverted
-                    ? "bg-slate-100 text-slate-700"
-                    : "bg-[#114C8D] text-white"
-                }`}
-                aria-label="Open profile menu"
-              >
-                {initials || "U"}
-              </button>
-
-              <span className="absolute -right-1 bottom-1 h-2 w-2 rounded-full bg-[#114C8D] ring-1 ring-white" />
-
-              {menuOpen && (
-                <div
-                    className="absolute bottom-0 left-full ml-2 rounded-md border shadow-sm py-1 z-50"
-                    style={{ width: 240, background: "#114C8D" }}
-                  >
-                  <button
-                    type="button"
-                    onClick={() => setMenuOpen(false)}
-                    className="w-full flex items-center px-3 py-2 text-sm text-white hover:bg-white/5"
-                  >
-                    <UserIcon />
-                    <span>Profile</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onChangeView("settings");
-                    }}
-                    className="w-full flex items-center px-3 py-2 text-sm text-white hover:bg-white/5"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-4 w-4 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M4 4h16v16H4z" />
-                      <path d="M4 8h16" />
-                    </svg>
-                    <span>Settings</span>
-                  </button>
-
-                  <div className="border-t border-white/20 mt-1" />
-
-                  <button
-                    type="button"
-                    onClick={() => setConfirmLogout(true)}
-                    className="w-full flex items-center px-3 py-2 text-sm text-white hover:bg-white/5"
-                  >
-                    <LogoutIcon />
-                    <span>Logout</span>
-                  </button>
-                </div>
-              )}
+          <div className="flex items-center justify-center">
+            <div
+              className={`rounded-md px-2 py-1 text-[10px] font-medium ${
+                inverted ? "text-slate-500" : "text-slate-400"
+              }`}
+              title={`Lawsuit AI ${appVersion}`}
+            >
+              {appVersion}
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-[#114C8D] flex items-center justify-center text-white font-semibold">
-                {initials || "U"}
-              </div>
-
-              <div className="min-w-0">
-                <div className="truncate text-sm font-medium text-slate-900">
-                  {userName || ""}
-                </div>
-                <div className="text-xs text-slate-500">Account</div>
-              </div>
+          <div className="space-y-1 text-center">
+            <div className="text-xs font-semibold text-slate-600">
+              Lawsuit AI {appVersion}
+              
             </div>
 
-            <div className="relative" ref={menuRef}>
-              <button
-                type="button"
-                onClick={() => setMenuOpen((v) => !v)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100"
-                aria-label="Open profile menu"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <circle cx="12" cy="5" r="1.5" />
-                  <circle cx="12" cy="12" r="1.5" />
-                  <circle cx="12" cy="19" r="1.5" />
-                </svg>
-              </button>
-
-              {menuOpen && (
-                <div
-                  className="absolute right-0 bottom-full mb-3 rounded-md border shadow-sm py-1 z-50"
-                  style={{ width: 240, background: "#114C8D" }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setMenuOpen(false)}
-                    className="w-full flex items-center px-3 py-2 text-sm text-white hover:bg-white/5"
-                  >
-                    <UserIcon />
-                    <span>Profile</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onChangeView("settings");
-                    }}
-                    className="w-full flex items-center px-3 py-2 text-sm text-white hover:bg-white/5"
-                  >
-                    <SettingsIcon />
-                    <span className="ml-2">Settings</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setConfirmLogout(true)}
-                    className="w-full flex items-center px-3 py-2 text-sm text-white hover:bg-white/5"
-                  >
-                    <LogoutIcon />
-                    <span>Logout</span>
-                  </button>
-                </div>
-              )}
+            <div className="text-[10px] leading-4 text-slate-400">
+              *AI responses may require independent legal verification.
             </div>
           </div>
         )}
       </div>
 
-      {confirmLogout && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-slate-900">
-              Confirm logout
-            </h3>
-            <p className="mt-2 text-sm text-slate-600">
-              Are you sure you want to log out?
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                onClick={() => setConfirmLogout(false)}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setConfirmLogout(false);
-                  setMenuOpen(false);
-                  onLogout?.();
-                }}
-                className="rounded-md bg-[#114C8D] px-3 py-2 text-sm text-white hover:bg-[#0b3a6f]"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        title="Delete chat"
+        message="This chat will be removed from your sidebar. This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        loading={deletingConversation}
+        onClose={() => {
+          if (!deletingConversation) {
+            setPendingDeleteId(null);
+          }
+        }}
+        onConfirm={async () => {
+          if (!pendingDeleteId || !onDeleteConversation) return;
+
+          try {
+            setDeletingConversation(true);
+            await onDeleteConversation(pendingDeleteId);
+            setPendingDeleteId(null);
+          } finally {
+            setDeletingConversation(false);
+          }
+        }}
+      />
     </aside>
   );
 }

@@ -18,7 +18,7 @@ export const STARTER_MESSAGE =
 export const SUGGESTIONS = [
   "What is the basic structure doctrine?",
   "Summarize Kesavananda Bharati.",
-  "Compare Golaknath and Kesavananda Bharati.",
+  "Give me murder cases where bail was granted",
   "Give me the holding in Maneka Gandhi.",
 ];
 
@@ -81,15 +81,28 @@ export function uniqueStrings(items: string[]) {
   return [...new Set(items.filter(Boolean))];
 }
 
+function getBooleanValue(obj: unknown, key: string): boolean {
+  if (!obj || typeof obj !== "object") return false;
+  return (obj as Record<string, unknown>)[key] === true;
+}
+
 export function buildStreamingThoughts(
   phase: string,
   trace?: StreamTrace | null
 ) {
   const router = trace?.router;
+  const phaseText = String(phase || "").trim();
+  const phaseLower = phaseText.toLowerCase();
+
+  const effectiveQuery = clampText(
+    trace?.effectiveQuery || trace?.originalQuery || "",
+    90
+  );
 
   const strategy = getObjectValue(router, "strategy");
   const taskType =
     getObjectValue(router, "taskType") || getObjectValue(router, "intent");
+
   const caseTarget = getNestedString(router, ["entities", "caseTarget"]);
   const metadataField = getNestedString(router, ["entities", "metadataField"]);
   const rewrites = getNestedStringArray(router, [
@@ -98,9 +111,171 @@ export function buildStreamingThoughts(
   ]);
   const reasons = getStringArray(router, "reasons");
 
+  const answerType = getObjectValue(router, "answerType");
+  const family = getObjectValue(router, "family");
+  const subtype = getObjectValue(router, "subtype");
+  const draftingObjective = getObjectValue(router, "draftingObjective");
+  const missingFields = getStringArray(router, "missingFields");
+  const isFollowUp = getBooleanValue(router, "isFollowUp");
+
+  const extractedFactsCount = (() => {
+    if (!router || typeof router !== "object") return 0;
+    const value = (router as Record<string, unknown>)["extractedFacts"];
+    if (!value || typeof value !== "object" || Array.isArray(value)) return 0;
+    return Object.keys(value as Record<string, unknown>).length;
+  })();
+
   const thoughts: string[] = [];
 
-  if (phase) thoughts.push(phase);
+  const isDraftingTrace =
+    Boolean(answerType) ||
+    Boolean(family) ||
+    Boolean(subtype) ||
+    Boolean(draftingObjective) ||
+    missingFields.length > 0 ||
+    isFollowUp;
+
+  if (isDraftingTrace) {
+    if (phaseText) thoughts.push(phaseText);
+
+    if (effectiveQuery) {
+      thoughts.push(`Working on: ${effectiveQuery}`);
+    }
+
+    if (draftingObjective) {
+      thoughts.push(`Draft goal: ${clampText(draftingObjective, 90)}`);
+    }
+
+    if (family) {
+      thoughts.push(`Document type: ${compactLabel(family)}`);
+    }
+
+    if (subtype) {
+      thoughts.push(`Subtype: ${compactLabel(subtype)}`);
+    }
+
+    if (strategy) {
+      thoughts.push(`Using ${compactLabel(strategy)} drafting flow`);
+    }
+
+    if (isFollowUp) {
+      thoughts.push("Applying your follow-up changes to the existing draft");
+    }
+
+    if (extractedFactsCount > 0) {
+      thoughts.push(`Using ${extractedFactsCount} extracted draft facts`);
+    }
+
+    if (missingFields.length > 0) {
+      thoughts.push(
+        `Checking missing details: ${clampText(
+          missingFields.slice(0, 3).map(compactLabel).join(", "),
+          90
+        )}`
+      );
+    }
+
+    if (phaseLower.includes("understanding drafting request")) {
+      return uniqueStrings(
+        [
+          phaseText || "Understanding drafting request",
+          effectiveQuery ? `Reading: ${effectiveQuery}` : "",
+          draftingObjective
+            ? `Understanding objective: ${clampText(draftingObjective, 90)}`
+            : "",
+          isFollowUp
+            ? "Reviewing the current draft before editing it"
+            : "Understanding the draft requirements",
+          extractedFactsCount > 0
+            ? `Found ${extractedFactsCount} usable draft facts`
+            : "Checking facts, parties and placeholders",
+        ].filter(Boolean)
+      );
+    }
+
+    if (
+      phaseLower.includes("matching templates") ||
+      phaseLower.includes("matching precedents") ||
+      phaseLower.includes("matching")
+    ) {
+      return uniqueStrings(
+        [
+          phaseText || "Matching templates and precedents",
+          family ? `Looking for a strong ${compactLabel(family)} structure` : "",
+          strategy ? `Using ${compactLabel(strategy)} matching` : "",
+          rewrites[0] ? `Trying: ${clampText(rewrites[0], 90)}` : "",
+          reasons[0] || "Comparing relevant templates, clauses and style",
+        ].filter(Boolean)
+      );
+    }
+
+    if (
+      phaseLower.includes("collecting drafting facts") ||
+      phaseLower.includes("collecting")
+    ) {
+      return uniqueStrings(
+        [
+          phaseText || "Collecting drafting facts",
+          extractedFactsCount > 0
+            ? `Using ${extractedFactsCount} extracted facts from your request`
+            : "Extracting the key drafting facts",
+          missingFields.length > 0
+            ? `Flagging missing items: ${clampText(
+                missingFields.slice(0, 3).map(compactLabel).join(", "),
+                90
+              )}`
+            : "Checking whether any placeholders are still needed",
+          isFollowUp
+            ? "Merging new instructions into the existing draft"
+            : "Preparing the draft inputs",
+        ].filter(Boolean)
+      );
+    }
+
+    if (
+      phaseLower.includes("structuring and drafting document") ||
+      phaseLower.includes("drafting document") ||
+      phaseLower.includes("drafting")
+    ) {
+      return uniqueStrings(
+        [
+          phaseText || "Drafting document",
+          family ? `Structuring the ${compactLabel(family)} properly` : "",
+          subtype ? `Applying ${compactLabel(subtype)} wording` : "",
+          isFollowUp
+            ? "Updating clauses while preserving the current draft context"
+            : "Building the draft with headings, clauses and formatting",
+          "Keeping numbering, structure and placeholders aligned",
+        ].filter(Boolean)
+      );
+    }
+
+    if (phaseLower.includes("streaming answer")) {
+      return uniqueStrings(
+        [
+          phaseText || "Streaming answer",
+          "Finalizing the draft text",
+          "Preparing the latest version for the editor",
+          isFollowUp
+            ? "Sending the updated draft version"
+            : "Sending the generated draft version",
+        ].filter(Boolean)
+      );
+    }
+
+    return uniqueStrings(
+      thoughts.length
+        ? thoughts
+        : [
+            "Understanding drafting request",
+            "Reviewing the draft requirements",
+            "Preparing the document structure",
+            "Drafting the content",
+          ]
+    );
+  }
+
+  if (phaseText) thoughts.push(phaseText);
   if (caseTarget) thoughts.push(`Looking at ${clampText(caseTarget, 70)}`);
   if (metadataField) {
     thoughts.push(`Checking ${compactLabel(metadataField)} details`);

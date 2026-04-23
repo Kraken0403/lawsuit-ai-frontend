@@ -20,7 +20,7 @@ import "tinymce/plugins/charmap";
 import "tinymce/plugins/anchor";
 import "tinymce/plugins/searchreplace";
 import "tinymce/plugins/visualblocks";
-// import "tinymce/plugins/code";
+import "tinymce/plugins/code";
 import "tinymce/plugins/insertdatetime";
 import "tinymce/plugins/media";
 import "tinymce/plugins/table";
@@ -67,48 +67,17 @@ type DraftingDockProps = {
 const DEFAULT_FONT_STACK = "'Times New Roman', Times, serif";
 const EMPTY_STRING_RECORD: Record<string, string> = Object.freeze({});
 
-const DRAFT_LAYOUT = {
-  pagePaddingTopPx: 42,
-  pagePaddingSidePx: 56,
-  pagePaddingBottomPx: 84,
-
-  bodyFontSizePt: 14,
-  bodyLineHeight: 1.5,
-
-  titleFontSizePt: 22,
-  titleLineHeight: 1.25,
-  titleMarginBottomPt: 60,
-
-  sectionFontSizePt: 14,
-  sectionLineHeight: 1.5,
-  sectionMarginTopPt: 25,
-  sectionMarginBottomPt: 15,
-
-  subsectionFontSizePt: 14,
-  subsectionLineHeight: 1.5,
-  subsectionMarginTopPt: 25,
-  subsectionMarginBottomPt: 15,
-
-  paragraphSpacingPt: 30,
-  clauseSpacingPt: 12,
-  subClauseSpacingPt: 10,
-  listSpacingPt: 12,
-
-  clauseIndentPx: 0,
-  subClauseIndentPx: 22,
-};
-
 const DRAFT_EDITOR_CSS = `
   body {
     font-family: ${DEFAULT_FONT_STACK};
-    font-size: ${DRAFT_LAYOUT.bodyFontSizePt}pt;
-    line-height: ${DRAFT_LAYOUT.bodyLineHeight};
+    font-size: 12pt;
+    line-height: 1.45;
     color: #1e293b;
     background: #ffffff;
     box-sizing: border-box;
     max-width: 768px;
     margin: 0 auto 30px;
-    padding: ${DRAFT_LAYOUT.pagePaddingTopPx}px ${DRAFT_LAYOUT.pagePaddingSidePx}px ${DRAFT_LAYOUT.pagePaddingBottomPx}px;
+    padding: 42px 56px 84px;
   }
 
   .doc-shell,
@@ -116,35 +85,61 @@ const DRAFT_EDITOR_CSS = `
     width: 100%;
   }
 
-  .doc-title,
-  h1.doc-title {
-    margin: 0 0 ${DRAFT_LAYOUT.titleMarginBottomPt}pt;
+  .doc-title {
+    margin: 0 0 18pt;
     font-family: ${DEFAULT_FONT_STACK};
-    font-size: ${DRAFT_LAYOUT.titleFontSizePt}pt;
-    line-height: ${DRAFT_LAYOUT.titleLineHeight};
+    font-size: 20pt;
+    line-height: 1.25;
     font-weight: 700;
     text-align: center;
     color: #0f172a;
   }
 
-  .doc-section-title,
-  h2.doc-section-title {
-    margin: ${DRAFT_LAYOUT.sectionMarginTopPt}pt 0 ${DRAFT_LAYOUT.sectionMarginBottomPt}pt;
+  .doc-section-title {
+    margin: 18pt 0 8pt;
     font-family: ${DEFAULT_FONT_STACK};
-    font-size: ${DRAFT_LAYOUT.sectionFontSizePt}pt;
-    line-height: ${DRAFT_LAYOUT.sectionLineHeight};
+    font-size: 14pt;
+    line-height: 1.3;
     font-weight: 700;
     color: #0f172a;
   }
 
-  .doc-subsection-title,
-  h3.doc-subsection-title {
-    margin: ${DRAFT_LAYOUT.subsectionMarginTopPt}pt 0 ${DRAFT_LAYOUT.subsectionMarginBottomPt}pt;
+  .doc-subsection-title {
+    margin: 14pt 0 6pt;
     font-family: ${DEFAULT_FONT_STACK};
-    font-size: ${DRAFT_LAYOUT.subsectionFontSizePt}pt;
-    line-height: ${DRAFT_LAYOUT.subsectionLineHeight};
+    font-size: 12pt;
+    line-height: 1.3;
     font-weight: 700;
     color: #0f172a;
+  }
+
+  .doc-header {
+    margin-bottom: 14pt;
+  }
+
+  .doc-footer {
+    margin-top: 18pt;
+  }
+
+  .doc-branding-block {
+    width: 100%;
+  }
+
+  .doc-branding-image {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    object-fit: contain;
+    user-select: none;
+    pointer-events: auto;
+  }
+
+  .doc-letterhead-image {
+    margin-bottom: 6pt;
+  }
+
+  .doc-footer-image {
+    margin-top: 8pt;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -152,77 +147,31 @@ const DRAFT_EDITOR_CSS = `
     color: #0f172a;
   }
 
-  h1 {
-    font-size: ${DRAFT_LAYOUT.titleFontSizePt}pt;
-    line-height: ${DRAFT_LAYOUT.titleLineHeight};
-    margin: 0 0 ${DRAFT_LAYOUT.titleMarginBottomPt}pt;
-    font-weight: 700;
-    text-align: center;
-  }
-
-  h2 {
-    font-size: ${DRAFT_LAYOUT.sectionFontSizePt}pt;
-    line-height: ${DRAFT_LAYOUT.sectionLineHeight};
-    margin: ${DRAFT_LAYOUT.sectionMarginTopPt}pt 0 ${DRAFT_LAYOUT.sectionMarginBottomPt}pt;
-    font-weight: 700;
-  }
-
-  h3 {
-    font-size: ${DRAFT_LAYOUT.subsectionFontSizePt}pt;
-    line-height: ${DRAFT_LAYOUT.subsectionLineHeight};
-    margin: ${DRAFT_LAYOUT.subsectionMarginTopPt}pt 0 ${DRAFT_LAYOUT.subsectionMarginBottomPt}pt;
-    font-weight: 700;
-  }
+  h1 { font-size: 20pt; margin: 0 0 12pt; line-height: 1.25; }
+  h2 { font-size: 14pt; margin: 18pt 0 8pt; line-height: 1.3; }
+  h3 { font-size: 12pt; margin: 14pt 0 6pt; line-height: 1.3; }
+  h4 { font-size: 11pt; margin: 12pt 0 6pt; line-height: 1.3; }
 
   p {
-    margin: 0 0 ${DRAFT_LAYOUT.paragraphSpacingPt}pt;
-    line-height: ${DRAFT_LAYOUT.bodyLineHeight};
-  }
-
-  p.doc-clause {
-    margin: 0 0 ${DRAFT_LAYOUT.clauseSpacingPt}pt;
-    line-height: ${DRAFT_LAYOUT.bodyLineHeight};
-    padding-left: ${DRAFT_LAYOUT.clauseIndentPx}px;
-    text-indent: 0;
-  }
-
-  p.doc-subclause {
-    margin: 0 0 ${DRAFT_LAYOUT.subClauseSpacingPt}pt;
-    line-height: ${DRAFT_LAYOUT.bodyLineHeight};
-    padding-left: ${DRAFT_LAYOUT.subClauseIndentPx}px;
-    text-indent: 0;
-  }
-
-  p.doc-label {
-    margin: 0 0 ${DRAFT_LAYOUT.paragraphSpacingPt}pt;
-    line-height: ${DRAFT_LAYOUT.bodyLineHeight};
-  }
-
-  p.doc-label strong {
-    font-weight: 700;
+    margin: 0 0 8pt;
+    line-height: 1.45;
   }
 
   ul,
   ol {
-    margin: 0 0 ${DRAFT_LAYOUT.listSpacingPt}pt 24px;
+    margin: 0 0 8pt 24px;
     padding: 0;
-    line-height: ${DRAFT_LAYOUT.bodyLineHeight};
+    line-height: 1.45;
   }
 
   li {
-    margin: 0 0 ${DRAFT_LAYOUT.clauseSpacingPt}pt;
-    line-height: ${DRAFT_LAYOUT.bodyLineHeight};
+    margin: 0 0 4pt;
+    line-height: 1.45;
   }
 
   li p {
     margin: 0;
-    line-height: ${DRAFT_LAYOUT.bodyLineHeight};
-  }
-
-  hr.doc-divider {
-    border: 0;
-    border-top: 1px solid #cbd5e1;
-    margin: 12pt 0;
+    line-height: 1.45;
   }
 
   a {
@@ -259,6 +208,216 @@ const DRAFT_EDITOR_CSS = `
     -webkit-box-decoration-break: clone;
   }
 `;
+
+function applyEditorLayout(editor: TinyMCEEditorType, height: number) {
+  const container = editor.getContainer();
+  if (!container) return;
+
+  container.classList.add("drafting-editor-instance");
+  container.style.setProperty("visibility", "visible");
+  container.style.setProperty("height", `${height}px`, "important");
+  container.style.setProperty("min-height", `${height}px`, "important");
+  container.style.setProperty("max-height", `${height}px`, "important");
+
+  const statusbar = container.querySelector(".tox-statusbar") as HTMLElement | null;
+  const chromeHeight = statusbar?.offsetHeight || 0;
+  const contentHeight = height - chromeHeight - 20;
+
+  const editorContainer = container.querySelector(
+    ".tox-editor-container"
+  ) as HTMLElement | null;
+  if (editorContainer) {
+    editorContainer.style.setProperty("height", `${contentHeight}px`, "important");
+    editorContainer.style.setProperty("min-height", `${contentHeight}px`, "important");
+    editorContainer.style.setProperty("max-height", `${contentHeight}px`, "important");
+  }
+
+  const sidebarWrap = container.querySelector(
+    ".tox-sidebar-wrap"
+  ) as HTMLElement | null;
+  if (sidebarWrap) {
+    sidebarWrap.style.setProperty("height", `${contentHeight}px`, "important");
+    sidebarWrap.style.setProperty("min-height", `${contentHeight}px`, "important");
+    sidebarWrap.style.setProperty("max-height", `${contentHeight}px`, "important");
+  }
+
+  const editArea = container.querySelector(".tox-edit-area") as HTMLElement | null;
+  if (editArea) {
+    editArea.style.setProperty("height", `${contentHeight}px`, "important");
+    editArea.style.setProperty("min-height", `${contentHeight}px`, "important");
+    editArea.style.setProperty("max-height", `${contentHeight}px`, "important");
+  }
+
+  const iframe = container.querySelector(
+    ".tox-edit-area__iframe"
+  ) as HTMLIFrameElement | null;
+  if (iframe) {
+    iframe.style.setProperty("height", `${contentHeight}px`, "important");
+    iframe.style.setProperty("min-height", `${contentHeight}px`, "important");
+    iframe.style.setProperty("max-height", `${contentHeight}px`, "important");
+  }
+}
+
+function isEffectivelyEmptyNode(node: HTMLElement | null) {
+  if (!node) return false;
+  if (!["P", "DIV"].includes(node.tagName)) return false;
+
+  const html = (node.innerHTML || "")
+    .replace(/&nbsp;/gi, "")
+    .replace(/<br\s*\/?\s*>/gi, "")
+    .trim();
+
+  return !html && !(node.textContent || "").trim();
+}
+
+function mergeAdjacentOrderedLists(root: HTMLElement) {
+  let children = Array.from(root.children) as HTMLElement[];
+  let index = 0;
+
+  while (index < children.length - 1) {
+    const current = children[index];
+    const next = children[index + 1];
+
+    if (!current || !next) {
+      index += 1;
+      continue;
+    }
+
+    if (current.tagName === "OL" && next.tagName === "OL") {
+      while (next.firstChild) {
+        current.appendChild(next.firstChild);
+      }
+      next.remove();
+      children = Array.from(root.children) as HTMLElement[];
+      continue;
+    }
+
+    const bridge = children[index + 1];
+    const afterBridge = children[index + 2];
+
+    if (
+      current.tagName === "OL" &&
+      isEffectivelyEmptyNode(bridge) &&
+      afterBridge?.tagName === "OL"
+    ) {
+      while (afterBridge.firstChild) {
+        current.appendChild(afterBridge.firstChild);
+      }
+      bridge.remove();
+      afterBridge.remove();
+      children = Array.from(root.children) as HTMLElement[];
+      continue;
+    }
+
+    index += 1;
+  }
+}
+
+function convertNumberedParagraphsToList(root: HTMLElement) {
+  const children = Array.from(root.children) as HTMLElement[];
+  const rebuilt: HTMLElement[] = [];
+  let currentList: HTMLOListElement | null = null;
+
+  const flushList = () => {
+    if (currentList) {
+      rebuilt.push(currentList);
+      currentList = null;
+    }
+  };
+
+  for (const child of children) {
+    const text = (child.textContent || "").trim();
+    const numberedMatch = text.match(/^(\d+)[.)]\s+(.*)$/);
+
+    if (
+      child.tagName === "P" &&
+      numberedMatch &&
+      numberedMatch[2] &&
+      !child.querySelector("img,table,blockquote")
+    ) {
+      if (!currentList) {
+        currentList = root.ownerDocument.createElement("ol");
+      }
+
+      const li = root.ownerDocument.createElement("li");
+      li.innerHTML = numberedMatch[2];
+      currentList.appendChild(li);
+      child.remove();
+      continue;
+    }
+
+    flushList();
+    rebuilt.push(child);
+  }
+
+  flushList();
+
+  root.innerHTML = "";
+  for (const node of rebuilt) {
+    root.appendChild(node);
+  }
+}
+
+function isJunkTitleCandidate(value: string) {
+  const clean = String(value || "").trim().toLowerCase();
+  if (!clean) return true;
+
+  return (
+    /^```/.test(clean) ||
+    clean === "markdown" ||
+    clean === "md" ||
+    clean === "text" ||
+    clean === "plaintext" ||
+    clean === "plain text"
+  );
+}
+
+function applyDraftPreset(bodyHtml: string) {
+  const safeHtml = bodyHtml?.trim() ? bodyHtml : "<p></p>";
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div id="draft-root">${safeHtml}</div>`, "text/html");
+  const root = doc.getElementById("draft-root");
+
+  if (!root) return safeHtml;
+
+  const blocks = Array.from(root.children).filter((node) =>
+    (node.textContent || "").trim()
+  ) as HTMLElement[];
+
+  if (blocks.length) {
+    const first = blocks[0];
+    const firstText = (first.textContent || "").trim();
+    const shouldTreatAsTitle =
+      firstText.length > 0 &&
+      firstText.length <= 180 &&
+      !isJunkTitleCandidate(firstText) &&
+      !["UL", "OL", "TABLE", "BLOCKQUOTE"].includes(first.tagName);
+
+    if (shouldTreatAsTitle) {
+      if (first.tagName === "H1") {
+        first.classList.add("doc-title");
+      } else {
+        const title = doc.createElement("h1");
+        title.className = "doc-title";
+        title.innerHTML = first.innerHTML;
+        first.replaceWith(title);
+      }
+    }
+  }
+
+  root.querySelectorAll("h2").forEach((node) => {
+    node.classList.add("doc-section-title");
+  });
+
+  root.querySelectorAll("h3").forEach((node) => {
+    node.classList.add("doc-subsection-title");
+  });
+
+  convertNumberedParagraphsToList(root);
+  mergeAdjacentOrderedLists(root);
+
+  return root.innerHTML || "<p></p>";
+}
 
 function CloseIcon() {
   return (
@@ -319,340 +478,82 @@ function WordIcon() {
   );
 }
 
-function applyEditorLayout(editor: TinyMCEEditorType, height: number) {
-  const container = editor.getContainer();
-  if (!container) return;
-
-  container.classList.add("drafting-editor-instance");
-  container.style.setProperty("visibility", "visible");
-  container.style.setProperty("height", `${height}px`, "important");
-  container.style.setProperty("min-height", `${height}px`, "important");
-  container.style.setProperty("max-height", `${height}px`, "important");
-
-  const statusbar = container.querySelector(".tox-statusbar") as HTMLElement | null;
-  const chromeHeight = statusbar?.offsetHeight || 0;
-  const contentHeight = height - chromeHeight - 20;
-
-  const editorContainer = container.querySelector(
-    ".tox-editor-container"
-  ) as HTMLElement | null;
-  if (editorContainer) {
-    editorContainer.style.setProperty("height", `${contentHeight}px`, "important");
-    editorContainer.style.setProperty("min-height", `${contentHeight}px`, "important");
-    editorContainer.style.setProperty("max-height", `${contentHeight}px`, "important");
-  }
-
-  const sidebarWrap = container.querySelector(
-    ".tox-sidebar-wrap"
-  ) as HTMLElement | null;
-  if (sidebarWrap) {
-    sidebarWrap.style.setProperty("height", `${contentHeight}px`, "important");
-    sidebarWrap.style.setProperty("min-height", `${contentHeight}px`, "important");
-    sidebarWrap.style.setProperty("max-height", `${contentHeight}px`, "important");
-  }
-
-  const editArea = container.querySelector(".tox-edit-area") as HTMLElement | null;
-  if (editArea) {
-    editArea.style.setProperty("height", `${contentHeight}px`, "important");
-    editArea.style.setProperty("min-height", `${contentHeight}px`, "important");
-    editArea.style.setProperty("max-height", `${contentHeight}px`, "important");
-  }
-
-  const iframe = container.querySelector(
-    ".tox-edit-area__iframe"
-  ) as HTMLIFrameElement | null;
-  if (iframe) {
-    iframe.style.setProperty("height", `${contentHeight}px`, "important");
-    iframe.style.setProperty("min-height", `${contentHeight}px`, "important");
-    iframe.style.setProperty("max-height", `${contentHeight}px`, "important");
-  }
+function stripHtmlToPlainText(html: string) {
+  if (!html) return "";
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
 }
 
-function getNormalizedNodeText(node: HTMLElement | null) {
-  return String(node?.textContent || "")
-    .replace(/\u00a0/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+function normalizeDockTitle(value: unknown) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
 }
 
-function isDividerText(text: string) {
-  return /^[-–—_]{3,}$/.test(String(text || "").trim());
+function stripSubjectPrefixLocal(value: unknown) {
+  return normalizeDockTitle(value).replace(/^subject\s*[:\-]\s*/i, "").trim();
 }
 
-function isClauseLine(text: string) {
-  return /^\d+\.\d+(?:\.\d+)?\s+\S+/.test(String(text || "").trim());
+function countBracketPlaceholdersLocal(value: string) {
+  return (String(value || "").match(/\[[^\]]+\]/g) || []).length;
 }
 
-function isSimpleOrderedLine(text: string) {
-  return /^\d+[.)]\s+\S+/.test(String(text || "").trim());
-}
-
-function isSubClauseLine(text: string) {
-  return /^\([a-zA-Z0-9]+\)\s+\S+/.test(String(text || "").trim());
-}
-
-function isLabelLine(text: string) {
-  return /^[A-Za-z][A-Za-z0-9&(),/'’\-\s]{1,60}:$/.test(
-    String(text || "").trim()
-  );
-}
-
-function isStrongDocumentTitle(text: string) {
-  const value = String(text || "").trim();
-
-  if (!value) return false;
-  if (value.length > 140) return false;
-  if (isDividerText(value)) return false;
-  if (isClauseLine(value)) return false;
-  if (isSimpleOrderedLine(value)) return false;
-  if (isSubClauseLine(value)) return false;
-  if (isLabelLine(value)) return false;
-  if (/[@]/.test(value)) return false;
-  if (/[:.]$/.test(value)) return false;
-
-  return true;
-}
-
-function isSectionHeadingText(text: string) {
-  const value = String(text || "").trim();
-
-  if (!value) return false;
-  if (value.length > 90) return false;
-  if (isDividerText(value)) return false;
-  if (isClauseLine(value)) return false;
-  if (isSimpleOrderedLine(value)) return false;
-  if (isSubClauseLine(value)) return false;
-  if (isLabelLine(value)) return false;
-  if (/[@]/.test(value)) return false;
-  if (/[:.]$/.test(value)) return false;
-
-  return /^[A-Za-z][A-Za-z0-9&(),/'’\-\s–—]{1,90}$/.test(value);
-}
-
-function normalizeDraftBlocks(root: HTMLElement) {
-  const doc = root.ownerDocument;
-  const children = Array.from(root.children) as HTMLElement[];
-  const rebuilt: HTMLElement[] = [];
-  let titleApplied = false;
-
-  for (const child of children) {
-    const text = getNormalizedNodeText(child);
-
-    if (!text) {
-      continue;
-    }
-
-    if (!titleApplied) {
-      if (child.tagName === "H1" && isStrongDocumentTitle(text)) {
-        child.classList.add("doc-title");
-        rebuilt.push(child);
-        titleApplied = true;
-        continue;
-      }
-
-      if (isStrongDocumentTitle(text)) {
-        const title = doc.createElement("h1");
-        title.className = "doc-title";
-        title.innerHTML = child.innerHTML;
-        rebuilt.push(title);
-        titleApplied = true;
-        continue;
-      }
-    }
-
-    if (child.tagName === "H2") {
-      child.classList.add("doc-section-title");
-      rebuilt.push(child);
-      continue;
-    }
-
-    if (child.tagName === "H3") {
-      child.classList.add("doc-subsection-title");
-      rebuilt.push(child);
-      continue;
-    }
-
-    if (isDividerText(text)) {
-      const hr = doc.createElement("hr");
-      hr.className = "doc-divider";
-      rebuilt.push(hr);
-      continue;
-    }
-
-    if (isSectionHeadingText(text)) {
-      const heading = doc.createElement("h2");
-      heading.className = "doc-section-title";
-      heading.innerHTML = child.innerHTML;
-      rebuilt.push(heading);
-      continue;
-    }
-
-    if (isLabelLine(text)) {
-      const p = doc.createElement("p");
-      p.className = "doc-label";
-
-      const inner = child.innerHTML.trim();
-      p.innerHTML = /^<strong[\s>]/i.test(inner)
-        ? inner
-        : `<strong>${inner}</strong>`;
-
-      rebuilt.push(p);
-      continue;
-    }
-
-    if (isClauseLine(text) || isSimpleOrderedLine(text)) {
-      const p = doc.createElement("p");
-      p.className = "doc-clause";
-      p.innerHTML = child.innerHTML;
-      rebuilt.push(p);
-      continue;
-    }
-
-    if (isSubClauseLine(text)) {
-      const p = doc.createElement("p");
-      p.className = "doc-subclause";
-      p.innerHTML = child.innerHTML;
-      rebuilt.push(p);
-      continue;
-    }
-
-    if (child.tagName === "P") {
-      child.classList.remove("doc-clause", "doc-subclause", "doc-label");
-    }
-
-    rebuilt.push(child);
-  }
-
-  root.innerHTML = "";
-  for (const node of rebuilt) {
-    root.appendChild(node);
-  }
-}
-
-
-function isJunkTitleCandidate(value: string) {
-  const clean = String(value || "").trim().toLowerCase();
-  if (!clean) return true;
-
-  return (
-    /^```/.test(clean) ||
-    clean === "markdown" ||
-    clean === "md" ||
-    clean === "text" ||
-    clean === "plaintext" ||
-    clean === "plain text"
-  );
-}
-
-function looksLikeContactOrAddressLine(value: string) {
-  const normalized = normalizeDockTitle(value);
-  const v = normalized.toLowerCase();
+function looksLikeAddressOrScaffoldTitle(value: string) {
+  const v = normalizeDockTitle(value).toLowerCase();
   if (!v) return true;
 
-  if (/@/.test(v)) return true;
-  if (/^\+?[\d\s().-]{7,}$/.test(v)) return true;
-  if (/\b\d{6}\b/.test(v)) return true;
-  if (/^(date|dated)\s*[:\-]/.test(v)) return true;
-  if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(v)) return true;
-  if (/^to[,]?$/.test(v) || /^dear\b/.test(v)) return true;
-
-  const addressSignals = [
-    "road",
-    "street",
-    "lane",
-    "avenue",
-    "floor",
-    "tower",
-    "building",
-    "block",
-    "sector",
-    "society",
-    "nagar",
-    "colony",
-    "district",
-    "state",
-    "india",
-    "gujarat",
-    "ahmedabad",
-    "mumbai",
-    "delhi",
-    "pincode",
+  const scaffoldPhrases = [
+    "your name",
+    "your company",
+    "your address",
+    "sender name",
+    "sender company",
+    "sender address",
+    "recipient name",
+    "recipient company",
+    "recipient address",
+    "company name",
+    "city, state",
     "zip code",
     "pin code",
+    "email address",
+    "phone number",
+    "mobile number",
+    "invoice number",
+    "invoice date",
+    "due date",
+    "amount due",
+    "insert date",
+    "sir/madam",
   ];
 
-  if (addressSignals.some((signal) => v.includes(signal))) {
+  if (
+    v === "new chat" ||
+    v === "untitled draft" ||
+    v === "frontend-lawsuit" ||
+    v === "frontend_lawsuit" ||
+    v === "frontend lawsuit" ||
+    /^```/.test(v) ||
+    /^markdown$/i.test(v)
+  ) {
     return true;
   }
 
-  const words = normalized.split(/\s+/).filter(Boolean);
-  if (words.length <= 2 && /^[a-z .'-]+$/i.test(normalized) && !/\b(vs\.?|v\.)\b/i.test(normalized)) {
+  if (
+    /^to[,]?$/.test(v) ||
+    /^dear\b/.test(v) ||
+    /^date\s*[:\-]/.test(v)
+  ) {
+    return true;
+  }
+
+  if (scaffoldPhrases.some((phrase) => v.includes(phrase))) {
+    return true;
+  }
+
+  if (countBracketPlaceholdersLocal(v) >= 2) {
     return true;
   }
 
   return false;
-}
-
-function hasDocumentTitleSignal(value: string) {
-  const normalized = normalizeDockTitle(value);
-  if (!normalized) return false;
-
-  if (/^subject\s*[:\-]/i.test(normalized)) return true;
-
-  return /\b(legal notice|notice|reply|agreement|contract|deed|affidavit|petition|application|undertaking|complaint|plaint|appeal|memorandum|invoice|demand|cease and desist|lease|nda|service agreement|employment|appointment|termination|settlement|breach|non-payment|payment|arbitration|indemnity|power of attorney|terms and conditions)\b/i.test(
-    normalized
-  );
-}
-
-function looksLikeDocumentTitleCandidate(value: string) {
-  const cleaned = stripSubjectPrefixLocal(value);
-  const normalized = normalizeDockTitle(cleaned);
-
-  if (!normalized) return false;
-  if (isJunkTitleCandidate(normalized)) return false;
-  if (looksLikeContactOrAddressLine(normalized)) return false;
-  if (countBracketPlaceholdersLocal(normalized) >= 1) return false;
-
-  const words = normalized.split(/\s+/).filter(Boolean);
-
-  if (hasDocumentTitleSignal(normalized)) {
-    return true;
-  }
-
-  return words.length >= 3 && words.length <= 14 && normalized.length <= 140;
-}
-
-function extractExplicitSubjectTitle(value: string) {
-  const plainText = stripHtmlToPlainText(
-    looksLikeHtml(value) ? extractDocBody(value) : stripOuterMarkdownFence(value)
-  );
-
-  const lines = plainText
-    .split(/\r?\n/)
-    .map((line) => normalizeDockTitle(line))
-    .filter(Boolean);
-
-  const subjectLine = lines.find((line) => /^subject\s*[:\-]/i.test(line));
-  if (!subjectLine) return "";
-
-  const cleaned = stripSubjectPrefixLocal(subjectLine);
-  return looksLikeDocumentTitleCandidate(cleaned) ? cleaned : "";
-}
-
-function applyDraftPreset(bodyHtml: string) {
-  const safeHtml = bodyHtml?.trim() ? bodyHtml : "<p></p>";
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(
-    `<div id="draft-root">${safeHtml}</div>`,
-    "text/html"
-  );
-  const root = doc.getElementById("draft-root");
-
-  if (!root) return safeHtml;
-
-  normalizeDraftBlocks(root);
-
-  return root.innerHTML || "<p></p>";
 }
 
 function deriveReadableTitle({
@@ -677,34 +578,12 @@ function deriveReadableTitle({
     .filter(Boolean);
 
   for (const candidate of factCandidates) {
-    if (looksLikeDocumentTitleCandidate(candidate)) {
-      return candidate.length > 100
-        ? `${candidate.slice(0, 97).trim()}...`
-        : candidate;
+    if (!looksLikeAddressOrScaffoldTitle(candidate)) {
+      const cleaned = stripSubjectPrefixLocal(candidate);
+      return cleaned.length > 100
+        ? `${cleaned.slice(0, 97).trim()}...`
+        : cleaned;
     }
-  }
-
-  const explicitSubject = extractExplicitSubjectTitle(draftText);
-  if (explicitSubject) {
-    return explicitSubject.length > 100
-      ? `${explicitSubject.slice(0, 97).trim()}...`
-      : explicitSubject;
-  }
-
-  const cleanConversationTitle = stripSubjectPrefixLocal(
-    normalizeDockTitle(conversationTitle)
-  );
-  if (looksLikeDocumentTitleCandidate(cleanConversationTitle)) {
-    return cleanConversationTitle.length > 100
-      ? `${cleanConversationTitle.slice(0, 97).trim()}...`
-      : cleanConversationTitle;
-  }
-
-  const cleanObjective = stripSubjectPrefixLocal(draftingObjective);
-  if (looksLikeDocumentTitleCandidate(cleanObjective)) {
-    return cleanObjective.length > 100
-      ? `${cleanObjective.slice(0, 97).trim()}...`
-      : cleanObjective;
   }
 
   const plainDraft = stripHtmlToPlainText(
@@ -718,9 +597,39 @@ function deriveReadableTitle({
     .map((line) => normalizeDockTitle(line))
     .filter(Boolean);
 
-  for (const line of draftLines.slice(0, 12)) {
+  const subjectLine = draftLines
+    .map((line) => stripSubjectPrefixLocal(line))
+    .find((line) => line && !looksLikeAddressOrScaffoldTitle(line));
+
+  if (subjectLine) {
+    const cleaned = stripSubjectPrefixLocal(subjectLine);
+    return cleaned.length > 100
+      ? `${cleaned.slice(0, 97).trim()}...`
+      : cleaned;
+  }
+
+  const cleanConversationTitle = stripSubjectPrefixLocal(
+    normalizeDockTitle(conversationTitle)
+  );
+  if (
+    cleanConversationTitle &&
+    !looksLikeAddressOrScaffoldTitle(cleanConversationTitle)
+  ) {
+    return cleanConversationTitle.length > 100
+      ? `${cleanConversationTitle.slice(0, 97).trim()}...`
+      : cleanConversationTitle;
+  }
+
+  const cleanObjective = stripSubjectPrefixLocal(draftingObjective);
+  if (cleanObjective && !looksLikeAddressOrScaffoldTitle(cleanObjective)) {
+    return cleanObjective.length > 100
+      ? `${cleanObjective.slice(0, 97).trim()}...`
+      : cleanObjective;
+  }
+
+  for (const line of draftLines.slice(0, 8)) {
     const cleaned = stripSubjectPrefixLocal(line);
-    if (looksLikeDocumentTitleCandidate(cleaned)) {
+    if (!looksLikeAddressOrScaffoldTitle(cleaned)) {
       return cleaned.length > 100
         ? `${cleaned.slice(0, 97).trim()}...`
         : cleaned;
@@ -728,25 +637,6 @@ function deriveReadableTitle({
   }
 
   return "Untitled draft";
-}
-
-
-function stripHtmlToPlainText(html: string) {
-  if (!html) return "";
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
-}
-
-function normalizeDockTitle(value: unknown) {
-  return String(value ?? "").replace(/\s+/g, " ").trim();
-}
-
-function stripSubjectPrefixLocal(value: unknown) {
-  return normalizeDockTitle(value).replace(/^subject\s*[:\-]\s*/i, "").trim();
-}
-
-function countBracketPlaceholdersLocal(value: string) {
-  return (String(value || "").match(/\[[^\]]+\]/g) || []).length;
 }
 
 function formatPlaceholderLabel(key: string) {
@@ -802,6 +692,8 @@ function buildPlaceholderStorageKey(params: {
 
   return `lawsuit:draft-placeholders:${fallbackBase}`;
 }
+
+
 
 function normalizePlaceholderKey(value: unknown) {
   return String(value ?? "")
@@ -937,7 +829,7 @@ export default function DraftingDock({
   draftingAnswerType: _draftingAnswerType,
   draftingObjective,
   draftingSources: _draftingSources,
-  draftingMissingFields: _draftingMissingFields,
+  draftingMissingFields,
   draftingExtractedFacts,
   draftPlaceholderValues = EMPTY_STRING_RECORD,
   onDraftChange,
@@ -962,7 +854,6 @@ export default function DraftingDock({
 
   const lastExternalBodyRef = useRef("");
   const lastBrandingSignatureRef = useRef("");
-  const lastEditorBodySnapshotRef = useRef("");
   const isApplyingExternalContentRef = useRef(false);
 
   const brandingSignature = JSON.stringify({
@@ -986,13 +877,27 @@ export default function DraftingDock({
   }, [JSON.stringify(draftPlaceholderValues || EMPTY_STRING_RECORD)]);
 
   const placeholderKeys = useMemo(() => {
-    const sourceText = editorHtml || draftText;
-    const keys = extractBracketPlaceholderKeysFromText(sourceText).filter(
-      (key) => String(key || "").trim()
-    );
+    const keys = new Set<string>();
 
-    return Array.from(new Set(keys));
-  }, [editorHtml, draftText]);
+    (draftingMissingFields || []).forEach((item) => {
+      const key = String(item || "").trim();
+      if (key) keys.add(key);
+    });
+
+    Object.keys(normalizedDraftPlaceholderValues).forEach((key) => {
+      if (String(key || "").trim()) keys.add(key);
+    });
+
+    extractBracketPlaceholderKeysFromText(draftText).forEach((key) => {
+      if (String(key || "").trim()) keys.add(key);
+    });
+
+    return Array.from(keys);
+  }, [
+    JSON.stringify(draftingMissingFields || []),
+    JSON.stringify(Object.keys(normalizedDraftPlaceholderValues).sort()),
+    draftText,
+  ]);
 
   const placeholderStorageKey = useMemo(
     () =>
@@ -1142,19 +1047,11 @@ export default function DraftingDock({
       : markdownishTextToHtml(draftText);
 
     const incomingBodyHtml = applyDraftPreset(rawBodyHtml);
-    const brandingChanged = brandingSignature !== lastBrandingSignatureRef.current;
-    const editorBodyHtml = applyDraftPreset(
-      extractDocBody(editor.getContent({ format: "html" }) || "") || "<p></p>"
-    );
 
-    const bodyChanged =
-      incomingBodyHtml !== lastExternalBodyRef.current &&
-      incomingBodyHtml !== lastEditorBodySnapshotRef.current &&
-      incomingBodyHtml !== editorBodyHtml;
+    const brandingChanged = brandingSignature !== lastBrandingSignatureRef.current;
+    const bodyChanged = incomingBodyHtml !== lastExternalBodyRef.current;
 
     if (!brandingChanged && !bodyChanged) {
-      lastExternalBodyRef.current = incomingBodyHtml;
-      lastEditorBodySnapshotRef.current = incomingBodyHtml;
       applyEditorLayout(editor, editorHeight);
       return;
     }
@@ -1162,7 +1059,6 @@ export default function DraftingDock({
     const rebuilt = buildEditorDocument(incomingBodyHtml, branding);
 
     lastExternalBodyRef.current = incomingBodyHtml;
-    lastEditorBodySnapshotRef.current = incomingBodyHtml;
     lastBrandingSignatureRef.current = brandingSignature;
     setEditorHtml(rebuilt);
 
@@ -1221,8 +1117,7 @@ export default function DraftingDock({
 
       const rebuilt = buildEditorDocument(highlightedBodyHtml, branding);
 
-      lastExternalBodyRef.current = applyDraftPreset(replacedBodyHtml);
-      lastEditorBodySnapshotRef.current = applyDraftPreset(replacedBodyHtml);
+      lastExternalBodyRef.current = replacedBodyHtml;
       lastBrandingSignatureRef.current = brandingSignature;
       setEditorHtml(rebuilt);
 
@@ -1321,8 +1216,8 @@ export default function DraftingDock({
       ref={shellRef}
       className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-white"
     >
-      <div className="mx-auto flex h-full min-h-0 w-full flex-col bg-white">
-        <div className="shrink-0 bg-[#f8f8f895] px-4 py-4 backdrop-blur draft-head sm:px-2">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-[980px] flex-col bg-white">
+        <div className="shrink-0 bg-blue-50 px-4 py-4 backdrop-blur draft-head sm:px-2">
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 flex-1 items-start gap-3">
               {onClose ? (
@@ -1422,7 +1317,6 @@ export default function DraftingDock({
               const initialFull = buildEditorDocument(initialBody, branding);
 
               lastExternalBodyRef.current = initialBody;
-              lastEditorBodySnapshotRef.current = initialBody;
               lastBrandingSignatureRef.current = brandingSignature;
               setEditorHtml(initialFull);
 
@@ -1469,6 +1363,7 @@ export default function DraftingDock({
                 "anchor",
                 "searchreplace",
                 "visualblocks",
+                "code",
                 "insertdatetime",
                 "media",
                 "table",
@@ -1478,7 +1373,7 @@ export default function DraftingDock({
                 "nonbreaking",
               ],
               toolbar:
-                "undo redo | styles blocks fontfamily fontsize lineheight | formatting alignment lists insert | searchreplace",
+                "undo redo | styles blocks fontfamily fontsize lineheight | formatting alignment lists insert | code",
               toolbar_groups: {
                 formatting: {
                   icon: "bold",
@@ -1554,15 +1449,12 @@ export default function DraftingDock({
                 });
               },
               content_style: DRAFT_EDITOR_CSS,
-              elementpath: false,
             }}
             onEditorChange={(content) => {
               setEditorHtml(content);
 
-              const bodyOnly = extractDocBody(content) || "<p></p>";
-              const normalizedBody = applyDraftPreset(bodyOnly);
-              lastExternalBodyRef.current = normalizedBody;
-              lastEditorBodySnapshotRef.current = normalizedBody;
+              const bodyOnly = extractDocBody(content);
+              lastExternalBodyRef.current = bodyOnly;
 
               if (isApplyingExternalContentRef.current) {
                 return;

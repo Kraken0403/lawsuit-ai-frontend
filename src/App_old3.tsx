@@ -131,66 +131,6 @@ function countBracketPlaceholdersInTitle(value: string) {
   return (String(value || "").match(/\[[^\]]+\]/g) || []).length;
 }
 
-function looksLikeContactOrAddressTitleLine(value: string) {
-  const normalized = normalizeDraftTitleText(value);
-  const v = normalized.toLowerCase();
-  if (!v) return true;
-
-  if (/@/.test(v)) return true;
-  if (/^\+?[\d\s().-]{7,}$/.test(v)) return true;
-  if (/\b\d{6}\b/.test(v)) return true;
-  if (/^(date|dated)\s*[:\-]/.test(v)) return true;
-  if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(v)) return true;
-  if (/^to[,]?$/.test(v) || /^dear\b/.test(v)) return true;
-
-  const addressSignals = [
-    "road",
-    "street",
-    "lane",
-    "avenue",
-    "floor",
-    "tower",
-    "building",
-    "block",
-    "sector",
-    "society",
-    "nagar",
-    "colony",
-    "district",
-    "state",
-    "india",
-    "gujarat",
-    "ahmedabad",
-    "mumbai",
-    "delhi",
-    "pincode",
-    "zip code",
-    "pin code",
-  ];
-
-  if (addressSignals.some((signal) => v.includes(signal))) {
-    return true;
-  }
-
-  const words = normalized.split(/\s+/).filter(Boolean);
-  if (words.length <= 2 && /^[a-z .'-]+$/i.test(normalized) && !/\b(vs\.?|v\.)\b/i.test(normalized)) {
-    return true;
-  }
-
-  return false;
-}
-
-function hasStrongDraftTitleSignal(value: string) {
-  const normalized = normalizeDraftTitleText(value);
-  if (!normalized) return false;
-
-  if (/^subject\s*[:\-]/i.test(normalized)) return true;
-
-  return /\b(legal notice|notice|reply|agreement|contract|deed|affidavit|petition|application|undertaking|complaint|plaint|appeal|memorandum|invoice|demand|cease and desist|lease|nda|service agreement|employment|appointment|termination|settlement|breach|non-payment|payment|arbitration|indemnity|power of attorney|terms and conditions)\b/i.test(
-    normalized
-  );
-}
-
 function looksLikeWeakDraftTitle(value: string) {
   const v = normalizeDraftTitleText(value).toLowerCase();
   if (!v) return true;
@@ -207,53 +147,12 @@ function looksLikeWeakDraftTitle(value: string) {
     return true;
   }
 
-  if (countBracketPlaceholdersInTitle(v) >= 1) {
+  if (/^dear\b/.test(v) || /^to[,]?$/.test(v) || /^date\s*[:\-]/.test(v)) {
     return true;
   }
 
-  if (looksLikeContactOrAddressTitleLine(v)) {
-    return true;
-  }
-
-  const words = v.split(/\s+/).filter(Boolean);
-  if (!hasStrongDraftTitleSignal(v) && (words.length < 3 || words.length > 14)) {
-    return true;
-  }
-
-  return false;
+  return countBracketPlaceholdersInTitle(v) >= 2;
 }
-
-function extractExplicitSubjectTitleFromDraft(value: string) {
-  const plainDraft = stripHtmlToPlainTextApp(String(value || ""));
-  const lines = plainDraft
-    .split(/\n+/)
-    .map((line) => normalizeDraftTitleText(line))
-    .filter(Boolean);
-
-  const subjectLine = lines.find((line) => /^subject\s*[:\-]/i.test(line));
-  if (!subjectLine) return "";
-
-  const cleaned = stripSubjectPrefixFromTitle(subjectLine);
-  return looksLikeWeakDraftTitle(cleaned) ? "" : cleaned;
-}
-
-function extractHtmlHeadingTitle(value: string) {
-  const source = String(value || "");
-  if (!source.trim() || typeof DOMParser === "undefined") return "";
-
-  try {
-    const doc = new DOMParser().parseFromString(source, "text/html");
-    const heading =
-      (doc.querySelector("h1.doc-title") as HTMLElement | null) ||
-      (doc.querySelector("h1") as HTMLElement | null);
-
-    const text = normalizeDraftTitleText(heading?.textContent || "");
-    return looksLikeWeakDraftTitle(text) ? "" : text;
-  } catch {
-    return "";
-  }
-}
-
 
 function stripHtmlToPlainTextApp(value: string) {
   const source = String(value || "");
@@ -281,20 +180,19 @@ function deriveCleanDraftTitle(params: {
   draftText?: string | null;
   fallback?: string | null;
 }) {
-  const htmlHeadingTitle = extractHtmlHeadingTitle(String(params.draftText || ""));
-  if (htmlHeadingTitle) {
-    return htmlHeadingTitle.length > 120
-      ? `${htmlHeadingTitle.slice(0, 117).trim()}...`
-      : htmlHeadingTitle;
-  }
+  const plainDraft = stripHtmlToPlainTextApp(String(params.draftText || ""));
+  const draftLines = plainDraft
+    .split(/\n+/)
+    .map((line) => normalizeDraftTitleText(line))
+    .filter(Boolean);
 
-  const explicitSubject = extractExplicitSubjectTitleFromDraft(
-    String(params.draftText || "")
-  );
-  if (explicitSubject) {
-    return explicitSubject.length > 120
-      ? `${explicitSubject.slice(0, 117).trim()}...`
-      : explicitSubject;
+  for (const line of draftLines.slice(0, 12)) {
+    const cleaned = stripSubjectPrefixFromTitle(line);
+    if (cleaned && !looksLikeWeakDraftTitle(cleaned)) {
+      return cleaned.length > 120
+        ? `${cleaned.slice(0, 117).trim()}...`
+        : cleaned;
+    }
   }
 
   const rawTitle = stripSubjectPrefixFromTitle(params.rawTitle || "");
@@ -309,21 +207,6 @@ function deriveCleanDraftTitle(params: {
     return fallback.length > 120
       ? `${fallback.slice(0, 117).trim()}...`
       : fallback;
-  }
-
-  const plainDraft = stripHtmlToPlainTextApp(String(params.draftText || ""));
-  const draftLines = plainDraft
-    .split(/\n+/)
-    .map((line) => normalizeDraftTitleText(line))
-    .filter(Boolean);
-
-  for (const line of draftLines.slice(0, 12)) {
-    const cleaned = stripSubjectPrefixFromTitle(line);
-    if (!looksLikeWeakDraftTitle(cleaned) && hasStrongDraftTitleSignal(cleaned)) {
-      return cleaned.length > 120
-        ? `${cleaned.slice(0, 117).trim()}...`
-        : cleaned;
-    }
   }
 
   return "Untitled draft";
@@ -347,69 +230,6 @@ function DraftToggleIcon() {
       <path d="M9 16h6" />
       <path d="M9 8h1" />
     </svg>
-  );
-}
-
-function CreditsLockedOverlay({
-  buyCreditsUrl,
-  onLogout,
-}: {
-  buyCreditsUrl: string;
-  onLogout: () => Promise<void>;
-}) {
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-[520px] rounded-[28px] border border-slate-200 bg-white p-7 shadow-[0_30px_120px_rgba(15,23,42,0.25)]">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#114C8D] text-white">
-          <svg
-            viewBox="0 0 24 24"
-            className="h-7 w-7"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.9"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 1v22" />
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14.5a3.5 3.5 0 0 1 0 7H6" />
-          </svg>
-        </div>
-
-        <div className="text-center">
-          <h2 className="text-[24px] font-semibold text-slate-900">
-            You are out of credits
-          </h2>
-
-          <p className="mt-3 text-[15px] leading-7 text-slate-600">
-            You need to buy more credits from LawSuit Case Finder to continue
-            using Judgment Mode, Drafting Studio, and the rest of the AI tools. Pls drop a mail on info@levons.in to renew your credits
-          </p>
-        </div>
-
-        <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <button
-            type="button"
-            onClick={() => {
-              if (!buyCreditsUrl || buyCreditsUrl === "#") return;
-              window.location.href = buyCreditsUrl;
-            }}
-            className="cursor-pointer inline-flex items-center justify-center rounded-2xl bg-[#114C8D] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#0B3A6E]"
-          >
-            Buy credits
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              void onLogout();
-            }}
-            className="cursor-pointer inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -446,16 +266,6 @@ export default function App() {
   const [draftingInput, setDraftingInput] = useState("");
 
   const activeInput = isDraftingMode ? draftingInput : chatInput;
-
-  const creditsRemaining = typeof user?.creditsRemaining === "number" ? user.creditsRemaining : 0;
-
-  const creditsLocked = Boolean(user) && creditsRemaining <= 0;
-
-  const buyCreditsUrl =
-    import.meta.env.VITE_CF_BUY_CREDITS_URL ||
-    import.meta.env.VITE_CF_LOGIN_URL ||
-    import.meta.env.VITE_CF_BASE_URL ||
-    "#";
 
   const setActiveInput = (value: string) => {
     if (isDraftingMode) {
@@ -986,7 +796,7 @@ const finalizeAssistantMessage = (fallbackText?: string) => {
         ...last,
         content:
           last.content ||
-          "I’m preparing the draft in the editor now. I’ll keep the chat concise while the full document is being structured on the right. Once it is ready, please review the facts, placeholders, and wording carefully before using it.",
+          "I’m drafting the document in the editor now. I’ll keep the chat brief and show the full draft in the workspace.",
         streaming: true,
       }));
     }
@@ -1881,18 +1691,6 @@ const stopStreaming = () => {
             ? undefined
             : deriveConversationTitle(query),
           attachmentIds: currentAttachmentIds,
-          draftDocumentId:
-            isDraftingMode && currentDraftDocumentId
-              ? currentDraftDocumentId
-              : undefined,
-          currentDraftText:
-            isDraftingMode && currentDraftText.trim()
-              ? currentDraftText
-              : undefined,
-          currentDraftTitle:
-            isDraftingMode && currentDraftTitle.trim()
-              ? currentDraftTitle
-              : undefined,
           selectedCourtIds:
             !isDraftingMode && selectedCourtIds.length > 0
               ? selectedCourtIds
@@ -2373,12 +2171,6 @@ const stopStreaming = () => {
           setCaseModalTab("case");
         }}
       />
-      {creditsLocked ? (
-        <CreditsLockedOverlay
-          buyCreditsUrl={buyCreditsUrl}
-          onLogout={logout}
-        />
-      ) : null}
     </>
   );
 }

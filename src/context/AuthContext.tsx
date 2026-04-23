@@ -20,6 +20,7 @@ type AuthContextValue = {
   }) => Promise<AuthUser>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
+  setCreditsRemaining: (credits: number) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -35,6 +36,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       setUser(null);
     }
+  }, []);
+
+  const setCreditsRemaining = useCallback((credits: number) => {
+    setUser((prev) => (prev ? { ...prev, creditsRemaining: credits } : prev));
   }, []);
 
   useEffect(() => {
@@ -93,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       logout,
       refresh,
+      setCreditsRemaining,
     }),
     [user, loading, login, register, logout, refresh]
   );
