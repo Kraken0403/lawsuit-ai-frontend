@@ -21,7 +21,7 @@ export default function WorkspaceHeader({
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase text-slate-500">
             {activeView === "bookmarks"
-              ? "Saved cases"
+              ? "AI Briefcase"
               : activeView === "settings"
               ? "Settings"
               : isDraftingMode
@@ -31,7 +31,7 @@ export default function WorkspaceHeader({
 
           <div className="truncate text-[15px] font-semibold text-slate-900 sm:text-[16px]">
             {activeView === "bookmarks"
-              ? "Bookmarks"
+              ? "AI Briefcase"
               : activeView === "settings"
               ? "Settings"
               : activeConversationTitle}

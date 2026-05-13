@@ -34,7 +34,7 @@ function getSummary(bookmark: BookmarkedCase) {
   return "";
 }
 
-function BookmarkIcon() {
+function BriefcaseIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
       <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z" />
@@ -86,35 +86,35 @@ export default function BookmarksPage({
     <div className="mx-auto w-full max-w-[900px] px-4 py-6">
       <div className="mb-8">
         <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
-          <BookmarkIcon />
-          <span>Saved cases</span>
+          <BriefcaseIcon />
+          <span>AI Briefcase</span>
         </div>
 
         <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-          Bookmarks
+          AI Briefcase
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          View and manage the cases you have bookmarked for later review.
+          View and manage the cases you have saved for later review.
         </p>
       </div>
 
       {loading ? (
         <div className="rounded-3xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm">
-          Loading bookmarks...
+          Loading AI Briefcase...
         </div>
       ) : bookmarks.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-8 text-center shadow-sm">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-            <BookmarkIcon />
+            <BriefcaseIcon />
           </div>
 
           <div className="text-lg font-semibold text-slate-900">
-            No bookmarked cases yet
+            No cases in your AI Briefcase yet
           </div>
 
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Bookmark cases from chat results and they will appear here.
+            Save cases from chat results and they will appear here.
           </p>
         </div>
       ) : (
@@ -144,7 +144,7 @@ export default function BookmarksPage({
                     ) : null}
 
                     <div className="mt-4 text-xs text-slate-400">
-                      Saved on {formatDate(bookmark.createdAt)}
+                      Added on {formatDate(bookmark.createdAt)}
                     </div>
                   </div>
 

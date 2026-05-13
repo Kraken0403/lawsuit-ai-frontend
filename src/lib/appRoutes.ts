@@ -22,7 +22,7 @@ export function getRouteState(pathname: string): RouteState {
     };
   }
 
-  if (path === "/bookmarks") {
+  if (path === "/bookmarks" || path === "/briefcase") {
     return {
       activeView: "bookmarks",
       workspaceView: null,
@@ -40,6 +40,7 @@ export function getRouteState(pathname: string): RouteState {
 
   if (path.startsWith("/drafting/")) {
     const conversationId = decodeURIComponent(path.slice("/drafting/".length));
+
     return {
       activeView: "drafting_document",
       workspaceView: "drafting_document",
@@ -57,6 +58,7 @@ export function getRouteState(pathname: string): RouteState {
 
   if (path.startsWith("/judgment/")) {
     const conversationId = decodeURIComponent(path.slice("/judgment/".length));
+
     return {
       activeView: "chat",
       workspaceView: "chat",
@@ -76,7 +78,7 @@ export function buildViewPath(view: AppView) {
     case "drafting_document":
       return "/drafting";
     case "bookmarks":
-      return "/bookmarks";
+      return "/briefcase";
     case "settings":
       return "/settings";
     case "chat":

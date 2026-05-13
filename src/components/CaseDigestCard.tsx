@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from "react";
+import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
   caseFeedbackService,
@@ -60,10 +60,10 @@ function SummaryIcon() {
   );
 }
 
-function BookmarkIcon({ filled }: { filled: boolean }) {
+function BriefcaseIcon({ filled }: { filled: boolean }) {
   return filled ? (
     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-      <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z" />
+      <path d="M9 3h6a2 2 0 0 1 2 2v2h3a2 2 0 0 1 2 2v9a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V9a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2Zm6 4V5H9v2h6Z" />
     </svg>
   ) : (
     <svg
@@ -72,8 +72,13 @@ function BookmarkIcon({ filled }: { filled: boolean }) {
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     >
-      <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z" />
+      <path d="M10 6V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v1" />
+      <path d="M3 10h18" />
+      <path d="M5 6h14a2 2 0 0 1 2 2v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V8a2 2 0 0 1 2-2Z" />
+      <path d="M12 10v2" />
     </svg>
   );
 }
@@ -193,6 +198,10 @@ export default function CaseDigestCard({
 }: CaseDigestCardProps) {
   const [localFeedback, setLocalFeedback] =
     useState<CaseFeedbackReaction>(null);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [commentBoxOpen, setCommentBoxOpen] = useState(false);
+  const [commentSaved, setCommentSaved] = useState(false);
+  const [commentError, setCommentError] = useState("");
   const [loadingFeedback, setLoadingFeedback] = useState(false);
   const [feedbackLoaded, setFeedbackLoaded] = useState(false);
 
@@ -207,6 +216,13 @@ export default function CaseDigestCard({
   useEffect(() => {
     let cancelled = false;
 
+    setFeedbackLoaded(false);
+    setLocalFeedback(null);
+    setFeedbackComment("");
+    setCommentBoxOpen(false);
+    setCommentSaved(false);
+    setCommentError("");
+
     if (!assistantMessageId) {
       setFeedbackLoaded(true);
       return;
@@ -216,7 +232,13 @@ export default function CaseDigestCard({
       .get(String(item.caseId), assistantMessageId)
       .then((response) => {
         if (cancelled) return;
-        setLocalFeedback(response.feedback?.feedback ?? null);
+
+        const savedFeedback = response.feedback?.feedback ?? null;
+        const savedComment = response.feedback?.comment ?? "";
+
+        setLocalFeedback(savedFeedback);
+        setFeedbackComment(savedComment);
+        setCommentBoxOpen(savedFeedback === "down" && !savedComment.trim());
         setFeedbackLoaded(true);
       })
       .catch(() => {
@@ -229,44 +251,139 @@ export default function CaseDigestCard({
     };
   }, [item.caseId, assistantMessageId]);
 
-  const handleFeedback = async (
-    event: MouseEvent<HTMLButtonElement>,
-    nextValue: "up" | "down"
+  const saveFeedback = async (
+    nextReaction: "up" | "down" | null,
+    comment: string | null
   ) => {
+    if (!assistantMessageId) return;
+
+    const response = await caseFeedbackService.save({
+      caseId: String(item.caseId),
+      assistantMessageId,
+      userMessageId: userMessageId ?? null,
+      feedback: nextReaction,
+      comment,
+      fingerprint: null,
+    });
+
+    setLocalFeedback(response.feedback?.feedback ?? null);
+    setFeedbackComment(response.feedback?.comment ?? "");
+  };
+
+  const handleLike = async (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
 
-    if (!assistantMessageId || loadingFeedback) {
-      return;
-    }
+    if (!assistantMessageId || loadingFeedback) return;
 
-    const previous = localFeedback;
-    const toggledValue = localFeedback === nextValue ? null : nextValue;
+    const previousReaction = localFeedback;
+    const previousComment = feedbackComment;
+    const nextReaction = localFeedback === "up" ? null : "up";
 
-    setLocalFeedback(toggledValue);
+    setLocalFeedback(nextReaction);
+    setFeedbackComment("");
+    setCommentBoxOpen(false);
+    setCommentSaved(false);
+    setCommentError("");
     setLoadingFeedback(true);
 
     try {
-      const response = await caseFeedbackService.toggleReaction({
-        caseId: String(item.caseId),
-        assistantMessageId,
-        userMessageId: userMessageId ?? null,
-        nextReaction: nextValue,
-        fingerprint: null,
-      });
-
-      setLocalFeedback(response.feedback?.feedback ?? null);
+      await saveFeedback(nextReaction, null);
     } catch {
-      setLocalFeedback(previous);
+      setLocalFeedback(previousReaction);
+      setFeedbackComment(previousComment);
     } finally {
       setLoadingFeedback(false);
     }
   };
 
+  const handleDislike = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+
+    if (!assistantMessageId || loadingFeedback) return;
+
+    const previousReaction = localFeedback;
+    const previousComment = feedbackComment;
+
+    setLocalFeedback("down");
+    setCommentBoxOpen(true);
+    setCommentSaved(false);
+    setCommentError("");
+    setLoadingFeedback(true);
+
+    try {
+      await saveFeedback("down", feedbackComment || null);
+    } catch {
+      setLocalFeedback(previousReaction);
+      setFeedbackComment(previousComment);
+      setCommentError("Could not save dislike. Please try again.");
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
+  const handleSaveComment = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+
+    if (!assistantMessageId || loadingFeedback) return;
+
+    const trimmedComment = feedbackComment.trim();
+
+    setCommentSaved(false);
+    setCommentError("");
+    setLoadingFeedback(true);
+
+    try {
+      await saveFeedback("down", trimmedComment || null);
+      setLocalFeedback("down");
+      setCommentSaved(true);
+    } catch {
+      setCommentError("Could not save comment. Please try again.");
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
+  const handleClearDislike = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+
+    if (!assistantMessageId || loadingFeedback) return;
+
+    const previousReaction = localFeedback;
+    const previousComment = feedbackComment;
+
+    setLocalFeedback(null);
+    setFeedbackComment("");
+    setCommentBoxOpen(false);
+    setCommentSaved(false);
+    setCommentError("");
+    setLoadingFeedback(true);
+
+    try {
+      await saveFeedback(null, null);
+    } catch {
+      setLocalFeedback(previousReaction);
+      setFeedbackComment(previousComment);
+      setCommentBoxOpen(previousReaction === "down");
+      setCommentError("Could not clear dislike. Please try again.");
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
+  const handleCardKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onOpen(item);
+    }
+  };
+
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onOpen(item)}
-      className="block w-full p-4 text-left transition cursor-pointer hover:bg-white rounded-[18px]"
+      onKeyDown={handleCardKeyDown}
+      className="block w-full rounded-[18px] p-4 text-left transition cursor-pointer hover:bg-white"
     >
       <div className="text-sm font-semibold leading-6 text-slate-900">
         {index + 1}. {item.title}
@@ -274,7 +391,9 @@ export default function CaseDigestCard({
 
       <div className="mt-1 text-xs text-slate-600">{item.citation}</div>
 
-      <div className="mt-3 text-sm leading-6 text-slate-700">{displaySummary}</div>
+      <div className="mt-3 text-sm leading-6 text-slate-700">
+        {displaySummary}
+      </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <TextActionButton
@@ -288,14 +407,14 @@ export default function CaseDigestCard({
         </TextActionButton>
 
         <TextActionButton
-          label={bookmarked ? "Saved" : "Bookmark"}
+          label={bookmarked ? "Saved to Briefcase" : "Save to Briefcase"}
           active={bookmarked}
           onClick={(event) => {
             event.stopPropagation();
             onToggleBookmark(item);
           }}
         >
-          <BookmarkIcon filled={bookmarked} />
+          <BriefcaseIcon filled={bookmarked} />
         </TextActionButton>
 
         <div className="ml-auto flex items-center gap-2">
@@ -303,22 +422,83 @@ export default function CaseDigestCard({
             label={localFeedback === "up" ? "Liked" : "Like"}
             active={localFeedback === "up"}
             disabled={!assistantMessageId || loadingFeedback || !feedbackLoaded}
-            onClick={(event) => handleFeedback(event, "up")}
+            onClick={handleLike}
           >
             <LikeIcon filled={localFeedback === "up"} />
           </IconToggleButton>
 
           <IconToggleButton
-            label={localFeedback === "down" ? "Disliked" : "Dislike"}
+            label={localFeedback === "down" ? "Edit dislike reason" : "Dislike"}
             active={localFeedback === "down"}
             disabled={!assistantMessageId || loadingFeedback || !feedbackLoaded}
-            onClick={(event) => handleFeedback(event, "down")}
+            onClick={handleDislike}
           >
             <DislikeIcon filled={localFeedback === "down"} />
           </IconToggleButton>
         </div>
       </div>
-    </button>
+
+      {commentBoxOpen && localFeedback === "down" ? (
+        <div
+          className="mt-4 rounded-2xl border border-rose-100 bg-rose-50/60 p-3"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <label className="block text-xs font-semibold uppercase tracking-wide text-rose-800">
+            Why did you dislike this case suggestion?
+          </label>
+
+          <textarea
+            value={feedbackComment}
+            onChange={(event) => {
+              setFeedbackComment(event.target.value);
+              setCommentSaved(false);
+              setCommentError("");
+            }}
+            rows={3}
+            maxLength={1000}
+            placeholder="Example: irrelevant case, wrong court, outdated citation, weak match, not enough factual similarity..."
+            className="mt-2 w-full resize-none rounded-xl border border-rose-100 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+          />
+
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="text-xs text-slate-500">
+              {commentError
+                ? commentError
+                : commentSaved
+                ? "Feedback saved."
+                : "This helps improve future case ranking."}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCommentBoxOpen(false)}
+                className="cursor-pointer rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearDislike}
+                disabled={loadingFeedback}
+                className="cursor-pointer rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Clear dislike
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveComment}
+                disabled={loadingFeedback}
+                className="cursor-pointer rounded-full bg-[#114C8D] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#0B3A6E] disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {loadingFeedback ? "Saving..." : "Save reason"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
-

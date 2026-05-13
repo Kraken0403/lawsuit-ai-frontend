@@ -348,7 +348,7 @@ export function bookmarkToCaseDigest(bookmark: BookmarkedCase): CaseDigest {
     "summary" in payload &&
     typeof payload.summary === "string"
       ? payload.summary
-      : "Saved bookmark";
+      : "Saved case";
 
   return {
     caseId: bookmark.externalCaseId ? Number(bookmark.externalCaseId) : 0,
