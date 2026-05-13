@@ -87,19 +87,7 @@ function ChatIcon() {
   );
 }
 
-function BookmarkIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-4 w-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z" />
-    </svg>
-  );
-}
+
 
 function BriefcaseIcon() {
   return (

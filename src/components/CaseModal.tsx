@@ -272,29 +272,6 @@ function stripHtmlToText(rawHtml: string) {
     .trim();
 }
 
-function resolveLanguageCode(value: string) {
-  const normalized = value.trim().toLowerCase();
-
-  const map: Record<string, string> = {
-    english: "en",
-    hindi: "hi",
-    gujarati: "gu",
-    marathi: "mr",
-    bengali: "bn",
-    tamil: "ta",
-    telugu: "te",
-    kannada: "kn",
-    malayalam: "ml",
-    urdu: "ur",
-    french: "fr",
-    german: "de",
-    spanish: "es",
-    arabic: "ar",
-  };
-
-  return map[normalized] || normalized || "hi";
-}
-
 function truncateText(text: string | null | undefined, maxLength: number) {
   const value = String(text || "").trim();
 
@@ -758,7 +735,7 @@ export default function CaseModal({
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const activeContentRef = useRef<HTMLDivElement>(null);
-  const findMarksRef = useRef<HTMLElement[]>([]);
+  // const findMarksRef = useRef<HTMLElement[]>([]);
   const chatAbortRef = useRef<AbortController | null>(null);
   const chatTraceRef = useRef<StreamTrace | null>(null);
 
