@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
+import { API_BASE } from "../lib/apiBase";
 
 export type DetailedSummarySections = {
   overview: string;

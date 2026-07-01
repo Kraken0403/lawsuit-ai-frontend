@@ -1,3 +1,5 @@
+import { API_BASE } from "./lib/apiBase";
+
 export type ChatMode = "judgment" | "drafting_studio" | "argument";
 
 export type SourceItem = {
@@ -63,9 +65,7 @@ export type StreamEvent =
       type: "credits";
       creditsRemaining: number;
       conversationId?: string | null;
-    };
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
+};
 
 export async function streamChat(
   payload: {

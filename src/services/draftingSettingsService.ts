@@ -1,4 +1,5 @@
 import { apiRequest } from "../lib/api";
+import { API_BASE } from "../lib/apiBase";
 
 export type DraftBrandingMode = "NONE" | "HEADER_FOOTER" | "LETTERHEAD";
 export type DraftingAssetKind =
@@ -50,11 +51,6 @@ type DraftingAssetUploadApiResponse = {
   path?: string;
   settings?: unknown;
 };
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8787").replace(
-  /\/+$/,
-  ""
-);
 
 export const EMPTY_DRAFTING_SETTINGS: DraftingSettings = {
   firmName: "",
