@@ -51,6 +51,7 @@ export type StreamEvent =
       answerType?: string;
       confidence?: number;
       conversationId?: string | null;
+      assistantMessageId?: string | null;
       draftDocumentId?: string | null;
     }
   | {

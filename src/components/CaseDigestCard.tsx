@@ -44,6 +44,16 @@ function shouldHideDuplicateSummary(
   return false;
 }
 
+function isInteractiveEventTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+
+  return Boolean(
+    target.closest(
+      'button, a, input, textarea, select, [contenteditable="true"], [role="textbox"]'
+    )
+  );
+}
+
 function SummaryIcon() {
   return (
     <svg
@@ -86,7 +96,7 @@ function BriefcaseIcon({ filled }: { filled: boolean }) {
 function LikeIcon({ filled }: { filled: boolean }) {
   return filled ? (
     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54z" />
+      <path d="M2 10h4v11H2V10Zm6 11h8.6a3 3 0 0 0 2.92-2.32l1.38-6A3 3 0 0 0 17.98 9H14V5a2 2 0 0 0-3.6-1.2L7.5 7.67A3 3 0 0 0 7 9.47V20a1 1 0 0 0 1 1Z" />
     </svg>
   ) : (
     <svg
@@ -95,8 +105,12 @@ function LikeIcon({ filled }: { filled: boolean }) {
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     >
-      <path d="m12 21.35-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+      <path d="M7 10v11" />
+      <path d="M2 10h5v11H2z" />
+      <path d="M7 10 11.4 4.2A2 2 0 0 1 15 5.4V9h3a3 3 0 0 1 2.92 3.68l-1.38 6A3 3 0 0 1 16.62 21H7" />
     </svg>
   );
 }
@@ -115,6 +129,26 @@ function DislikeIcon({ filled }: { filled: boolean }) {
       strokeWidth="2"
     >
       <path d="M19 14H6.83l1.58 4.74c.39 1.17-.48 2.26-1.69 2.26-.66 0-1.27-.34-1.62-.9L2 14.5V4a2 2 0 0 1 2-2h11c.85 0 1.6.54 1.87 1.34L19 10v4z" />
+    </svg>
+  );
+}
+
+function CommentIcon({ filled }: { filled: boolean }) {
+  return filled ? (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+      <path d="M5 3h14a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H9.4l-4.7 3.53A1 1 0 0 1 3 20.73V6a3 3 0 0 1 2-3Z" />
+    </svg>
+  ) : (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 15a3 3 0 0 1-3 3H8l-5 4V6a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3z" />
     </svg>
   );
 }
@@ -252,7 +286,7 @@ export default function CaseDigestCard({
   }, [item.caseId, assistantMessageId]);
 
   const saveFeedback = async (
-    nextReaction: "up" | "down" | null,
+    nextReaction: CaseFeedbackReaction,
     comment: string | null
   ) => {
     if (!assistantMessageId) return;
@@ -280,20 +314,29 @@ export default function CaseDigestCard({
     const nextReaction = localFeedback === "up" ? null : "up";
 
     setLocalFeedback(nextReaction);
-    setFeedbackComment("");
     setCommentBoxOpen(false);
     setCommentSaved(false);
     setCommentError("");
     setLoadingFeedback(true);
 
     try {
-      await saveFeedback(nextReaction, null);
+      await saveFeedback(nextReaction, feedbackComment.trim() || null);
     } catch {
       setLocalFeedback(previousReaction);
       setFeedbackComment(previousComment);
     } finally {
       setLoadingFeedback(false);
     }
+  };
+
+  const handleToggleCommentBox = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+
+    if (!assistantMessageId || loadingFeedback) return;
+
+    setCommentBoxOpen((prev) => !prev);
+    setCommentSaved(false);
+    setCommentError("");
   };
 
   const handleDislike = async (event: MouseEvent<HTMLButtonElement>) => {
@@ -333,11 +376,34 @@ export default function CaseDigestCard({
     setLoadingFeedback(true);
 
     try {
-      await saveFeedback("down", trimmedComment || null);
-      setLocalFeedback("down");
+      await saveFeedback(localFeedback, trimmedComment || null);
       setCommentSaved(true);
     } catch {
       setCommentError("Could not save comment. Please try again.");
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
+
+  const handleClearComment = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+
+    if (!assistantMessageId || loadingFeedback) return;
+
+    const previousReaction = localFeedback;
+    const previousComment = feedbackComment;
+
+    setFeedbackComment("");
+    setCommentSaved(false);
+    setCommentError("");
+    setLoadingFeedback(true);
+
+    try {
+      await saveFeedback(localFeedback, null);
+    } catch {
+      setLocalFeedback(previousReaction);
+      setFeedbackComment(previousComment);
+      setCommentError("Could not clear comment. Please try again.");
     } finally {
       setLoadingFeedback(false);
     }
@@ -371,6 +437,8 @@ export default function CaseDigestCard({
   };
 
   const handleCardKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (isInteractiveEventTarget(event.target)) return;
+
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       onOpen(item);
@@ -435,16 +503,27 @@ export default function CaseDigestCard({
           >
             <DislikeIcon filled={localFeedback === "down"} />
           </IconToggleButton>
+
+          <IconToggleButton
+            label={feedbackComment.trim() ? "Edit case comment" : "Comment"}
+            active={commentBoxOpen || Boolean(feedbackComment.trim())}
+            disabled={!assistantMessageId || loadingFeedback || !feedbackLoaded}
+            onClick={handleToggleCommentBox}
+          >
+            <CommentIcon
+              filled={commentBoxOpen || Boolean(feedbackComment.trim())}
+            />
+          </IconToggleButton>
         </div>
       </div>
 
-      {commentBoxOpen && localFeedback === "down" ? (
+      {commentBoxOpen ? (
         <div
-          className="mt-4 rounded-2xl border border-rose-100 bg-rose-50/60 p-3"
+          className="mt-4 rounded-2xl border border-slate-200 bg-white p-3"
           onClick={(event) => event.stopPropagation()}
         >
-          <label className="block text-xs font-semibold uppercase tracking-wide text-rose-800">
-            Why did you dislike this case suggestion?
+          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Comment on this case
           </label>
 
           <textarea
@@ -456,8 +535,8 @@ export default function CaseDigestCard({
             }}
             rows={3}
             maxLength={1000}
-            placeholder="Example: irrelevant case, wrong court, outdated citation, weak match, not enough factual similarity..."
-            className="mt-2 w-full resize-none rounded-xl border border-rose-100 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-rose-300 focus:ring-2 focus:ring-rose-100"
+            placeholder="Add a note about why this case is useful, irrelevant, or needs follow-up..."
+            className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#114C8D] focus:ring-2 focus:ring-blue-100"
           />
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -465,8 +544,10 @@ export default function CaseDigestCard({
               {commentError
                 ? commentError
                 : commentSaved
-                ? "Feedback saved."
-                : "This helps improve future case ranking."}
+                ? "Comment saved."
+                : localFeedback === "down"
+                ? "This helps improve future case ranking."
+                : "This note is saved for this case suggestion."}
             </div>
 
             <div className="flex items-center gap-2">
@@ -478,14 +559,25 @@ export default function CaseDigestCard({
                 Close
               </button>
 
-              <button
-                type="button"
-                onClick={handleClearDislike}
-                disabled={loadingFeedback}
-                className="cursor-pointer rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Clear dislike
-              </button>
+              {localFeedback === "down" ? (
+                <button
+                  type="button"
+                  onClick={handleClearDislike}
+                  disabled={loadingFeedback}
+                  className="cursor-pointer rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Clear dislike
+                </button>
+              ) : feedbackComment.trim() ? (
+                <button
+                  type="button"
+                  onClick={handleClearComment}
+                  disabled={loadingFeedback}
+                  className="cursor-pointer rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Clear comment
+                </button>
+              ) : null}
 
               <button
                 type="button"
@@ -493,7 +585,7 @@ export default function CaseDigestCard({
                 disabled={loadingFeedback}
                 className="cursor-pointer rounded-full bg-[#114C8D] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#0B3A6E] disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                {loadingFeedback ? "Saving..." : "Save reason"}
+                {loadingFeedback ? "Saving..." : "Save comment"}
               </button>
             </div>
           </div>

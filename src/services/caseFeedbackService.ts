@@ -6,7 +6,7 @@ export type SuggestedCaseFeedback = {
   id: string;
   caseId: string;
   fingerprint: string | null;
-  feedback: "up" | "down";
+  feedback: CaseFeedbackReaction;
   comment: string;
   userMessageId: string | null;
   assistantMessageId: string | null;

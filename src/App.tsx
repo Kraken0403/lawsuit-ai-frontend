@@ -612,6 +612,7 @@ useEffect(() => {
   const finalizePendingRef = useRef<{
     pending: boolean;
     fallback?: string;
+    assistantMessageId?: string | null;
   }>({ pending: false });
 
   const activeDraftAnswerTypeRef = useRef<
@@ -867,7 +868,11 @@ const canSend = useMemo(
   const resetTypingEngine = () => {
     clearTypingTimer();
     typingQueueRef.current = [];
-    finalizePendingRef.current = { pending: false, fallback: undefined };
+    finalizePendingRef.current = {
+      pending: false,
+      fallback: undefined,
+      assistantMessageId: undefined,
+    };
   };
 
   const clearDraftSaveTimer = (conversationId: string) => {
@@ -910,13 +915,17 @@ const updateAssistantMessage = (updater: (message: Message) => Message) => {
   });
 };
 
-const finalizeAssistantMessage = (fallbackText?: string) => {
+const finalizeAssistantMessage = (
+  fallbackText?: string,
+  assistantMessageId?: string | null
+) => {
   updateAssistantMessage((last) => {
     const finalContent =
       last.content.trim().length > 0 ? last.content : fallbackText || "";
 
     return {
       ...last,
+      id: assistantMessageId || last.id,
       content: finalContent,
       streaming: false,
     };
@@ -932,8 +941,13 @@ const finalizeAssistantMessage = (fallbackText?: string) => {
       finalizePendingRef.current.pending
     ) {
       const fallback = finalizePendingRef.current.fallback;
-      finalizePendingRef.current = { pending: false, fallback: undefined };
-      finalizeAssistantMessage(fallback);
+      const assistantMessageId = finalizePendingRef.current.assistantMessageId;
+      finalizePendingRef.current = {
+        pending: false,
+        fallback: undefined,
+        assistantMessageId: undefined,
+      };
+      finalizeAssistantMessage(fallback, assistantMessageId);
     }
   };
 
@@ -2028,6 +2042,7 @@ const stopStreaming = () => {
 
               updateAssistantMessage((last) => ({
                 ...last,
+                id: event.assistantMessageId || last.id,
                 content: makeDraftingChatSummary(last.trace, fullDraft),
                 streaming: false,
               }));
@@ -2043,11 +2058,12 @@ const stopStreaming = () => {
               typingQueueRef.current.length === 0 &&
               typingTimerRef.current === null
             ) {
-              finalizeAssistantMessage();
+              finalizeAssistantMessage(undefined, event.assistantMessageId);
             } else {
               finalizePendingRef.current = {
                 pending: true,
                 fallback: undefined,
+                assistantMessageId: event.assistantMessageId,
               };
             }
 
