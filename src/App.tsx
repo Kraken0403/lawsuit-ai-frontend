@@ -1561,27 +1561,18 @@ useEffect(() => {
           return;
         }
 
-        const targetConversationId =
-          conversationResponse.conversations.find(
-            (item) => item.id === activeConversationId
-          )?.id ||
-          conversationResponse.conversations[0]?.id ||
-          null;
+        const targetConversation = conversationResponse.conversations.find(
+          (item) => item.id === activeConversationId
+        );
 
-        if (!targetConversationId) {
-          if (!cancelled) {
-            setMessages([makeWorkspaceStarterMessage(workspaceView)]);
-            setMessagesLoading(false);
-          }
+        if (!targetConversation) {
+          setMessages([makeWorkspaceStarterMessage(workspaceView)]);
+          setMessagesLoading(false);
+          navigate(buildViewPath(workspaceView), { replace: true });
           return;
         }
 
-        if (activeConversationId !== targetConversationId) {
-          navigate(buildConversationPath(workspaceView, targetConversationId), {
-            replace: true,
-          });
-          return;
-        }
+        const targetConversationId = targetConversation.id;
 
         if (
           pendingInitialMessageConversationRef.current &&

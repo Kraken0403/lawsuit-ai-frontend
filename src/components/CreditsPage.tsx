@@ -219,51 +219,38 @@ export default function CreditsPage({
   };
 
   return (
-    <div className="min-h-full overflow-y-auto bg-[#f7f9fc]">
-      <div className="mx-auto w-full max-w-[1180px] px-5 py-10 sm:px-8 lg:px-10 lg:py-14">
-        <section className="relative overflow-hidden rounded-[30px] border border-[#dbe5f0] bg-white px-6 py-8 shadow-[0_24px_80px_rgba(15,35,65,0.08)] sm:px-9 lg:px-12 lg:py-11">
-          <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[#e8f1fb] blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-[#eef4fa] blur-3xl" />
+    <div className="h-full min-h-0 overflow-y-auto overscroll-contain bg-[#f6f8fb]">
+      <div className="mx-auto w-full max-w-[1120px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="text-sm font-semibold text-[#114C8D]">AI Credits</div>
+            <h1 className="mt-1 text-[26px] font-semibold leading-tight tracking-[-0.02em] text-slate-950 sm:text-[30px]">
+              Choose your credit package
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Select a one-time package. Credits are added to your account immediately after secure payment verification.
+            </p>
+          </div>
 
-          <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#cfe0f2] bg-[#f4f8fc] px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#114C8D]">
-                <CreditMark />
-                AI Credit Store
-              </div>
-              <h1 className="max-w-3xl text-[34px] font-semibold leading-[1.08] tracking-[-0.035em] text-slate-950 sm:text-[44px] lg:text-[52px]">
-                Keep your legal AI workspace moving.
-              </h1>
-              <p className="mt-5 max-w-2xl text-[16px] leading-7 text-slate-600 sm:text-[17px]">
-                Purchase a credit package and continue using Judgment Mode,
-                Drafting Studio, and the rest of the Lawsuit AI tools.
-              </p>
-            </div>
-
-            <div className="min-w-[220px] rounded-[22px] border border-[#d8e3ee] bg-[#f8fafc] p-5">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                Current balance
-              </div>
-              <div className="mt-2 flex items-end gap-2">
-                <span className="text-[38px] font-semibold leading-none tracking-[-0.04em] text-[#114C8D]">
-                  {creditsRemaining}
-                </span>
-                <span className="pb-1 text-sm font-medium text-slate-500">
-                  credits
-                </span>
-              </div>
+          <div className="w-full rounded-xl border border-[#d9e3ee] bg-white px-4 py-3 sm:w-auto sm:min-w-[190px]">
+            <div className="text-xs font-medium text-slate-500">Available balance</div>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className="text-[28px] font-semibold leading-none text-[#114C8D]">
+                {creditsRemaining}
+              </span>
+              <span className="text-sm text-slate-500">credits</span>
             </div>
           </div>
-        </section>
+        </div>
 
         {success && (
-          <div className="mt-6 flex items-start gap-3 rounded-[18px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-900">
-            <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+          <div className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-900">
+            <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
               <CheckIcon />
             </div>
             <div>
-              <div className="font-semibold">Payment completed successfully.</div>
-              <div className="mt-1 text-sm leading-6 text-emerald-800">
+              <div className="text-sm font-semibold">Payment completed successfully.</div>
+              <div className="mt-0.5 text-sm leading-6 text-emerald-800">
                 {success.added} credits were added. Your new balance is {success.remaining} credits.
               </div>
             </div>
@@ -271,108 +258,86 @@ export default function CreditsPage({
         )}
 
         {error && (
-          <div className="mt-6 rounded-[18px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm leading-6 text-rose-800">
+          <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-800">
             {error}
           </div>
         )}
 
-        <section className="mt-8 grid gap-5 lg:grid-cols-3">
+        <section className="mt-6 grid gap-5 md:grid-cols-3">
           {PACKAGES.map((item) => {
             const isProcessing = processingPackage === item.id;
 
             return (
               <article
                 key={item.id}
-                className={`relative flex min-h-[430px] flex-col overflow-hidden rounded-[28px] border p-7 transition duration-200 sm:p-8 ${
+                className={`relative flex min-h-[360px] flex-col rounded-2xl border bg-white p-5 shadow-[0_8px_24px_rgba(15,23,42,0.05)] transition sm:p-6 ${
                   item.featured
-                    ? "border-[#114C8D] bg-[#0b3769] text-white shadow-[0_28px_70px_rgba(17,76,141,0.22)] lg:-translate-y-3"
-                    : "border-[#dbe4ee] bg-white text-slate-950 shadow-[0_18px_50px_rgba(15,35,65,0.06)] hover:-translate-y-1 hover:border-[#b9cde2]"
+                    ? "border-[#114C8D] ring-1 ring-[#114C8D]"
+                    : "border-slate-200 hover:border-[#a9bfd6]"
                 }`}
               >
                 {item.featured && (
-                  <div className="absolute right-5 top-5 rounded-full bg-white/12 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white ring-1 ring-white/20">
-                    Recommended
+                  <div className="absolute right-4 top-4 rounded-full bg-[#114C8D] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white">
+                    Most Popular
                   </div>
                 )}
 
-                <div
-                  className={`text-xs font-semibold uppercase tracking-[0.17em] ${
-                    item.featured ? "text-blue-100" : "text-[#114C8D]"
-                  }`}
-                >
-                  {item.eyebrow}
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#edf4fb] text-[#114C8D]">
+                  <CreditMark />
                 </div>
 
-                <div className="mt-7">
-                  <div className="flex items-end gap-2">
-                    <span className="text-[56px] font-semibold leading-none tracking-[-0.055em]">
-                      {item.credits}
-                    </span>
-                    <span
-                      className={`pb-2 text-sm font-medium ${
-                        item.featured ? "text-blue-100" : "text-slate-500"
-                      }`}
-                    >
-                      AI Credits
-                    </span>
-                  </div>
-                  <div className="mt-5 text-[32px] font-semibold tracking-[-0.035em]">
+                <div className="mt-5 text-sm font-semibold text-slate-700">
+                  {item.eyebrow} Package
+                </div>
+
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-[40px] font-semibold leading-none tracking-[-0.04em] text-slate-950">
+                    {item.credits}
+                  </span>
+                  <span className="text-sm font-medium text-slate-500">AI credits</span>
+                </div>
+
+                <div className="mt-5 border-y border-slate-100 py-4">
+                  <div className="text-[28px] font-semibold tracking-[-0.025em] text-[#114C8D]">
                     {formatRupees(item.amount)}
                   </div>
+                  <div className="mt-1 text-xs text-slate-500">One-time payment</div>
                 </div>
 
-                <p
-                  className={`mt-5 text-[15px] leading-7 ${
-                    item.featured ? "text-blue-50/85" : "text-slate-600"
-                  }`}
-                >
-                  {item.description}
-                </p>
-
-                <div
-                  className={`my-7 h-px ${
-                    item.featured ? "bg-white/15" : "bg-slate-200"
-                  }`}
-                />
-
-                <div className="space-y-3 text-sm">
-                  {["Instant credit addition", "Secure online payment", "Use across all AI tools"].map(
-                    (benefit) => (
-                      <div key={benefit} className="flex items-center gap-3">
-                        <div
-                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
-                            item.featured
-                              ? "bg-white/12 text-white"
-                              : "bg-[#eaf2fa] text-[#114C8D]"
-                          }`}
-                        >
-                          <CheckIcon />
-                        </div>
-                        <span>{benefit}</span>
+                <div className="mt-5 space-y-3 text-sm text-slate-600">
+                  {[
+                    "Instant credit activation",
+                    "Secure Razorpay checkout",
+                    "Valid across all AI tools",
+                  ].map((benefit) => (
+                    <div key={benefit} className="flex items-center gap-2.5">
+                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#edf4fb] text-[#114C8D]">
+                        <CheckIcon />
                       </div>
-                    )
-                  )}
+                      <span>{benefit}</span>
+                    </div>
+                  ))}
                 </div>
 
                 <button
                   type="button"
                   disabled={Boolean(processingPackage)}
                   onClick={() => void startPurchase(item.id)}
-                  className={`mt-auto inline-flex min-h-12 cursor-pointer items-center justify-center rounded-[14px] px-5 py-3.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                  className={`mt-auto inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                     item.featured
-                      ? "bg-white text-[#0b3769] hover:bg-blue-50"
-                      : "bg-[#114C8D] text-white hover:bg-[#0b3a6e]"
+                      ? "bg-[#114C8D] text-white hover:bg-[#0b3a6e]"
+                      : "border border-[#114C8D] bg-white text-[#114C8D] hover:bg-[#f2f7fc]"
                   }`}
                 >
-                  {isProcessing ? "Opening secure payment..." : `Buy ${item.credits} Credits`}
+                  {isProcessing ? "Opening payment..." : "Purchase Package"}
                 </button>
               </article>
             );
           })}
         </section>
 
-        <div className="mt-5 text-center text-xs leading-5 text-slate-500">
-          Credits are added only after the payment is securely verified.
+        <div className="pb-2 pt-5 text-center text-xs leading-5 text-slate-500">
+          Credits are added only after the payment is verified successfully.
         </div>
       </div>
     </div>
