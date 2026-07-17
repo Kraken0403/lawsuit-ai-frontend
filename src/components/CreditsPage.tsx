@@ -323,7 +323,7 @@ export default function CreditsPage({
                   type="button"
                   disabled={Boolean(processingPackage)}
                   onClick={() => void startPurchase(item.id)}
-                  className={`mt-auto inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                  className={`mt-3.75 inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                     item.featured
                       ? "bg-[#114C8D] text-white hover:bg-[#0b3a6e]"
                       : "border border-[#114C8D] bg-white text-[#114C8D] hover:bg-[#f2f7fc]"
