@@ -181,7 +181,6 @@ export default function TopNavigation({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userRef = useRef<HTMLDivElement | null>(null);
 
-  const NAV_DASHBOARD = import.meta.env.VITE_NAV_DASHBOARD as string | undefined;
   const NAV_AI = import.meta.env.VITE_NAV_AI as string | undefined;
   const NAV_CASELAW = import.meta.env.VITE_NAV_CASELAW as string | undefined;
   const NAV_BAREACTS = import.meta.env.VITE_NAV_BAREACTS as string | undefined;
@@ -195,7 +194,7 @@ export default function TopNavigation({
       {
         key: "dashboard",
         label: "Dashboard",
-        href: NAV_DASHBOARD || `${cfBaseUrl}/Lawsuit/welcome`,
+        href: `${cfBaseUrl.replace(/\/+$/, "")}/Lawsuit/welcome`,
         icon: <DashboardIcon />,
       },
       {

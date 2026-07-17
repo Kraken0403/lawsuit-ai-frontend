@@ -22,6 +22,14 @@ export function getRouteState(pathname: string): RouteState {
     };
   }
 
+  if (path === "/credits") {
+    return {
+      activeView: "credits",
+      workspaceView: null,
+      conversationId: null,
+    };
+  }
+
   if (path === "/bookmarks" || path === "/briefcase") {
     return {
       activeView: "bookmarks",
@@ -81,6 +89,8 @@ export function buildViewPath(view: AppView) {
       return "/briefcase";
     case "settings":
       return "/settings";
+    case "credits":
+      return "/credits";
     case "chat":
     default:
       return "/judgment";

@@ -15,6 +15,7 @@ import Sidebar from "./components/Sidebar";
 import CaseModal from "./components/CaseModal";
 import AuthScreen from "./components/AuthScreen";
 import BookmarksPage from "./components/BookmarksPage";
+import CreditsPage from "./components/CreditsPage";
 import WorkspacePane from "./components/workspace/WorkspacePane";
 import DraftingDock from "./components/drafting/DraftingDock";
 import { useAuth } from "./context/AuthContext";
@@ -351,10 +352,10 @@ function DraftToggleIcon() {
 }
 
 function CreditsLockedOverlay({
-  buyCreditsUrl,
+  onBuyCredits,
   onLogout,
 }: {
-  buyCreditsUrl: string;
+  onBuyCredits: () => void;
   onLogout: () => Promise<void>;
 }) {
   return (
@@ -381,18 +382,15 @@ function CreditsLockedOverlay({
           </h2>
 
           <p className="mt-3 text-[15px] leading-7 text-slate-600">
-            You need to buy more credits from LawSuit Case Finder to continue
-            using Judgment Mode, Drafting Studio, and the rest of the AI tools. Pls drop a mail on info@levons.in to renew your credits
+            You need to buy more credits to continue using Judgment Mode,
+            Drafting Studio, and the rest of the AI tools.
           </p>
         </div>
 
         <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <button
             type="button"
-            onClick={() => {
-              if (!buyCreditsUrl || buyCreditsUrl === "#") return;
-              window.location.href = buyCreditsUrl;
-            }}
+            onClick={onBuyCredits}
             className="cursor-pointer inline-flex items-center justify-center rounded-2xl bg-[#114C8D] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#0B3A6E]"
           >
             Buy credits
@@ -450,12 +448,6 @@ export default function App() {
   const creditsRemaining = typeof user?.creditsRemaining === "number" ? user.creditsRemaining : 0;
 
   const creditsLocked = Boolean(user) && creditsRemaining <= 0;
-
-  const buyCreditsUrl =
-    import.meta.env.VITE_CF_BUY_CREDITS_URL ||
-    import.meta.env.VITE_CF_LOGIN_URL ||
-    import.meta.env.VITE_CF_BASE_URL ||
-    "#";
 
   const setActiveInput = (value: string) => {
     if (isDraftingMode) {
@@ -1563,11 +1555,16 @@ useEffect(() => {
           return;
         }
 
+        if (!activeConversationId) {
+          setMessages([makeWorkspaceStarterMessage(workspaceView)]);
+          setMessagesLoading(false);
+          return;
+        }
+
         const targetConversationId =
-          (activeConversationId &&
-            conversationResponse.conversations.find(
-              (item) => item.id === activeConversationId
-            )?.id) ||
+          conversationResponse.conversations.find(
+            (item) => item.id === activeConversationId
+          )?.id ||
           conversationResponse.conversations[0]?.id ||
           null;
 
@@ -2209,6 +2206,17 @@ const stopStreaming = () => {
                 </div>
               )}
 
+              {activeView === "credits" && (
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <CreditsPage
+                    userName={user.name}
+                    userEmail={user.email}
+                    creditsRemaining={creditsRemaining}
+                    onCreditsUpdated={setCreditsRemaining}
+                  />
+                </div>
+              )}
+
               {workspaceView === "chat" && (
                 <WorkspacePane
                   messages={messages}
@@ -2389,9 +2397,9 @@ const stopStreaming = () => {
           setCaseModalTab("case");
         }}
       />
-      {creditsLocked ? (
+      {creditsLocked && activeView !== "credits" ? (
         <CreditsLockedOverlay
-          buyCreditsUrl={buyCreditsUrl}
+          onBuyCredits={() => navigate(buildViewPath("credits"))}
           onLogout={logout}
         />
       ) : null}

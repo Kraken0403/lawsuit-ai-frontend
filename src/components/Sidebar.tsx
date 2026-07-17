@@ -7,7 +7,7 @@ import type {
 } from "../services/conversationService";
 import ConfirmDialog from "./ui/ConfirmDialog";
 
-type SidebarView = "chat" | "drafting_document" | "bookmarks" | "settings";
+type SidebarView = "chat" | "drafting_document" | "bookmarks" | "settings" | "credits";
 
 type SidebarProps = {
   conversations: ConversationListItem[];
@@ -402,6 +402,16 @@ export default function Sidebar({
             label="Settings"
             onClick={() => onChangeView("settings")}
           />
+
+          <SidebarNavButton
+            collapsed={collapsed}
+            inverted={inverted}
+            useBlue={!collapsed && expandedBlue}
+            active={activeView === "credits"}
+            icon={<FaCoins className="h-4 w-4" />}
+            label="Buy AI Credits"
+            onClick={() => onChangeView("credits")}
+          />
         </div>
       </div>
 
@@ -582,17 +592,27 @@ export default function Sidebar({
       <div className={`border-t ${inverted ? "border-white/10" : "border-slate-200"} px-3 py-3`}>
         <div className="flex items-center justify-center">
           {collapsed ? (
-            <button type="button" title={`Credits: ${typeof creditsRemaining === "number" ? creditsRemaining : "-"}`} className="p-1">
+            <button
+              type="button"
+              onClick={() => onChangeView("credits")}
+              title={`Credits: ${typeof creditsRemaining === "number" ? creditsRemaining : "-"}`}
+              className="cursor-pointer p-1"
+            >
               <FaCoins className="react-coin-icon text-yellow-500" />
             </button>
           ) : (
-            <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onChangeView("credits")}
+              className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-1 transition hover:bg-slate-50"
+              title="Buy AI credits"
+            >
               <FaCoins className="react-coin-icon text-yellow-500" />
               <span className={`credit-pill sidebar-credit-pill ${pulse ? "pulse" : ""}`}>
                 {typeof creditsRemaining === "number" ? creditsRemaining : "-"}
               </span>
               <div className="text-xs text-slate-500">Credits Remaining</div>
-            </div>
+            </button>
           )}
         </div>
       </div>

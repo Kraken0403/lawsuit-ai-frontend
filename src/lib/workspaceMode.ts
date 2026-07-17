@@ -3,7 +3,7 @@ import { makeStarterMessage, type AppMessage } from "./appHelpers";
 import type { StreamTrace } from "../streamChat";
 
 export type WorkspaceView = "chat" | "drafting_document";
-export type AppView = WorkspaceView | "bookmarks" | "settings";
+export type AppView = WorkspaceView | "bookmarks" | "settings" | "credits";
 export type DraftingAnswerType = "drafting_questions" | "drafting_draft" | null;
 
 export function isWorkspaceView(view: AppView): view is WorkspaceView {
